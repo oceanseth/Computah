@@ -1,0 +1,124 @@
+name: PR Agent Demo (Limrun)
+
+# When a PR is pushed, build the agent's mobile app on a Limrun cloud iOS
+# simulator, drive it, screen-record it to an mp4, and post the result back on
+# the PR. This is the "capture" half of a Memoir-style demo pipeline — Memoir
+# (or the X API) layers narration + on-brand posting on top. See
+# voice-app/MEMOIR_HANDOFF.md.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      app_dir:
+        description: "Path to the Expo app to demo"
+        default: "voice-app/mobile"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-agent-demo-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_DIR: ${{ github.event.inputs.app_dir || 'voice-app/mobile' }}
+  BUNDLE_ID: run.lim.alwayslistening
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest          # No Mac needed — Limrun runs the cloud Mac.
+    # Requires a repo secret: LIM_API_KEY (Settings → Secrets → Actions).
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Limrun CLI
+        run: npm install -g lim
+
+      - name: Create cloud iOS simulator (with Xcode sandbox)
+        id: create
+        env:
+          LIM_API_KEY: ${{ secrets.LIM_API_KEY }}
+        run: |
+          lim ios create --xcode --reuse-if-exists \
+            --label repo=${{ github.repository }} \
+            --label pr=${{ github.event.pull_request.number || 'manual' }} \
+            --json > instance.json
+          cat instance.json
+          INSTANCE_ID=$(jq -r '.id // .instanceId // .name' instance.json)
+          STREAM_URL=$(jq -r '.signedStreamUrl // .streamUrl // .endpoints.signedStreamUrl // empty' instance.json)
+          echo "instance_id=$INSTANCE_ID" >> "$GITHUB_OUTPUT"
+          echo "stream_url=$STREAM_URL"   >> "$GITHUB_OUTPUT"
+
+      - name: Build & install the app (xcodebuild on the cloud Mac)
+        env:
+          LIM_API_KEY: ${{ secrets.LIM_API_KEY }}
+        run: |
+          lim xcode build "$APP_DIR" \
+            --id "${{ steps.create.outputs.instance_id }}" \
+            --configuration Release
+
+      - name: Record a demo of the agent running
+        env:
+          LIM_API_KEY: ${{ secrets.LIM_API_KEY }}
+          ID: ${{ steps.create.outputs.instance_id }}
+        run: |
+          lim ios launch-app "$BUNDLE_ID" --id "$ID"
+          sleep 6
+          lim ios record start --quality 8 --id "$ID"
+          # Drive the app so the recording shows real behavior. Each step is
+          # best-effort so a UI change doesn't fail the whole demo.
+          lim ios tap-element --ax-label "+ Sample conversation" --id "$ID" || true
+          sleep 2
+          lim ios tap-element --ax-label "✦ Distill now" --id "$ID" || true
+          sleep 8
+          lim ios tap-element --ax-label "Memories" --id "$ID" || true
+          sleep 4
+          lim ios record stop -o demo.mp4 --id "$ID"
+          ls -lh demo.mp4
+
+      - name: Upload demo video artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-demo-pr-${{ github.event.pull_request.number || github.run_id }}
+          path: demo.mp4
+          if-no-files-found: warn
+
+      - name: Comment the demo on the PR
+        if: ${{ always() && github.event.pull_request.number }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const stream = `${{ steps.create.outputs.stream_url }}`;
+            const body = [
+              "### 🎬 Agent demo (Limrun)",
+              "",
+              "A cloud iOS simulator built this PR's app and recorded it running — no Mac required.",
+              "",
+              `- 📹 **Video:** download \`demo.mp4\` from the [workflow run artifacts](${run}).`,
+              stream ? `- 🖥️ **Live simulator (while warm):** [open stream](${stream})` : "",
+              "",
+              "_Next: Memoir layers voice narration + an on-brand X/LinkedIn post on top of this clip._",
+            ].filter(Boolean).join("\n");
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body,
+            });
+
+      - name: Clean up the instance
+        if: always()
+        env:
+          LIM_API_KEY: ${{ secrets.LIM_API_KEY }}
+        run: lim ios delete --id "${{ steps.create.outputs.instance_id }}" || true

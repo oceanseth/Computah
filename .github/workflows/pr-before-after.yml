@@ -1,0 +1,134 @@
+name: PR Before/After (Devin)
+
+# On every PR, screenshot PRODUCTION (before) vs the Vercel PREVIEW deploy
+# (after) and comment a side-by-side on the PR — so you can see what the PR
+# changed in the running app at a glance. When Devin (devin.ai) is the PR
+# author, the comment calls that out. Shots are published to a `pr-previews`
+# branch and shown inline via raw.githubusercontent.com (no extra secrets).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write          # to push screenshots to the pr-previews branch
+  pull-requests: write
+
+concurrency:
+  group: pr-before-after-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  # Override via repo Variables if your Vercel project/scope differ.
+  VERCEL_PROJECT: ${{ vars.VERCEL_PROJECT || 'computah' }}
+  VERCEL_SCOPE: ${{ vars.VERCEL_SCOPE || 'abhishekjani2509-1755s-projects' }}
+  PROD_URL: ${{ vars.PROD_URL || 'https://computah.vercel.app' }}
+  ROUTES: "/,/console"
+  SHOTS_BRANCH: pr-previews
+
+jobs:
+  before-after:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install deps + Chromium
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Resolve Vercel preview URL & wait for it
+        id: preview
+        run: |
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          SAN=$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
+          AFTER="https://${VERCEL_PROJECT}-git-${SAN}-${VERCEL_SCOPE}.vercel.app"
+          echo "after_url=$AFTER" >> "$GITHUB_OUTPUT"
+          echo "Waiting for preview: $AFTER"
+          ok=""
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L "$AFTER" || echo 000)
+            echo "  attempt $i → $code"
+            if [ "$code" = "200" ]; then ok="1"; break; fi
+            sleep 12
+          done
+          echo "ready=${ok:-}" >> "$GITHUB_OUTPUT"
+
+      - name: Capture before/after screenshots
+        if: steps.preview.outputs.ready == '1'
+        env:
+          BEFORE_URL: ${{ env.PROD_URL }}
+          AFTER_URL: ${{ steps.preview.outputs.after_url }}
+          ROUTES: ${{ env.ROUTES }}
+          OUT_DIR: shots
+        run: node .github/scripts/pr-before-after.mjs
+
+      - name: Publish shots to ${{ env.SHOTS_BRANCH }} branch
+        id: publish
+        if: steps.preview.outputs.ready == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR="${{ github.event.pull_request.number }}"
+          SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
+          DEST="pr-${PR}/${SHA}"
+          REPO="${{ github.repository }}"
+          git clone --depth 1 --branch "$SHOTS_BRANCH" \
+            "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" shots-repo 2>/dev/null || {
+              git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" shots-repo
+              cd shots-repo && git checkout --orphan "$SHOTS_BRANCH" && git rm -rf . >/dev/null 2>&1 || true && cd ..
+            }
+          mkdir -p "shots-repo/${DEST}"
+          cp shots/*.png "shots-repo/${DEST}/"
+          cd shots-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${DEST}"
+          git commit -m "shots: PR #${PR} @ ${SHA}" || echo "nothing to commit"
+          git push origin "$SHOTS_BRANCH"
+          echo "raw_base=https://raw.githubusercontent.com/${REPO}/${SHOTS_BRANCH}/${DEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Comment on the PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const pr = context.payload.pull_request;
+            const ready = `${{ steps.preview.outputs.ready }}` === '1';
+            const rawBase = `${{ steps.publish.outputs.raw_base }}`;
+            const author = (pr.user?.login || '').toLowerCase();
+            const isDevin = author.includes('devin');
+            const header = isDevin
+              ? '### 🤖 Devin opened this PR — before / after'
+              : '### 🔍 Before / after this PR';
+
+            let body;
+            if (ready && rawBase) {
+              let manifest = [];
+              try { manifest = JSON.parse(fs.readFileSync('shots/manifest.json', 'utf8')); } catch {}
+              const rows = manifest.map(m =>
+                `| \`${m.route}\` | <img src="${rawBase}/${m.beforeFile}" width="360"> | <img src="${rawBase}/${m.afterFile}" width="360"> |`
+              ).join('\n');
+              body = [
+                header, '',
+                "Production vs this PR's Vercel preview, captured live:", '',
+                '| Route | Before (production) | After (this PR) |',
+                '| --- | --- | --- |',
+                rows, '',
+                `_Preview: ${{ steps.preview.outputs.after_url }}_`,
+              ].join('\n');
+            } else {
+              body = `${header}\n\n⚠️ Couldn't reach the Vercel preview deploy in time (${{ steps.preview.outputs.after_url }}) — it may still be building or behind deployment protection.`;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body,
+            });
