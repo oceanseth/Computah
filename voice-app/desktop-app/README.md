@@ -1,6 +1,6 @@
 # Always Listening
 
-> **Note:** This app lives under `voice-app/insforge-hackathon/` — make all code
+> **Note:** This app lives under `voice-app/desktop-app/` — make all code
 > changes here (its own `src/`), **not** in the main Computah `src/` at the
 > repository root.
 
