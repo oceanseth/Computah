@@ -2,6 +2,7 @@ import SidebarNavItem from "./SidebarNavItem";
 import {
   ActivityIcon,
   ChatBubbleIcon,
+  ChessIcon,
   MicIcon,
   PlugIcon,
   SparkleIcon,
@@ -42,6 +43,11 @@ export default function Sidebar() {
           href="/activity"
           label="Activity"
           icon={<ActivityIcon size={17} />}
+        />
+        <SidebarNavItem
+          href="/quantum-chess"
+          label="Quantum Chess"
+          icon={<ChessIcon size={17} />}
         />
       </nav>
 
