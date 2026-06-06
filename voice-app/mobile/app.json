@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Always Listening",
+    "slug": "always-listening-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "run.lim.alwayslistening",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Always Listening uses the microphone to transcribe your conversations into memories."
+      }
+    },
+    "android": {
+      "package": "run.lim.alwayslistening",
+      "permissions": ["android.permission.RECORD_AUDIO"],
+      "adaptiveIcon": {
+        "backgroundColor": "#0a0b0f",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Always Listening uses the microphone to transcribe your conversations into memories."
+        }
+      ],
+      "expo-secure-store"
+    ]
+  }
+}
