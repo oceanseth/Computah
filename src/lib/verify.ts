@@ -119,6 +119,36 @@ function describeElements(els: Interactive[]): string {
     .join("\n");
 }
 
+// Build the user message prompt from page state
+function buildUserPrompt(
+  goal: string,
+  pageUrl: string,
+  title: string,
+  text: string,
+  els: Interactive[],
+  consoleErrors: string[],
+  history: string[],
+  remaining: number
+): string {
+  return [
+    `GOAL: ${goal}`,
+    `CURRENT URL: ${pageUrl}`,
+    `PAGE TITLE: ${title || "(none)"}`,
+    `STEPS REMAINING: ${remaining}`,
+    history.length
+      ? `ACTIONS ALREADY TAKEN (do not repeat):\n${history.map((h, i) => `${i + 1}. ${h}`).join("\n")}`
+      : `ACTIONS ALREADY TAKEN: none yet`,
+    consoleErrors.length
+      ? `RECENT CONSOLE ERRORS:\n${consoleErrors.slice(-5).join("\n")}`
+      : "RECENT CONSOLE ERRORS: none",
+    `VISIBLE PAGE TEXT:\n${text || "(empty page)"}`,
+    `INTERACTIVE ELEMENTS:\n${describeElements(els)}`,
+    remaining <= 1
+      ? `This is your LAST step — you must return a "finish" action with your verdict.`
+      : `Decide the single best next action.`,
+  ].join("\n\n");
+}
+
 // ---------------------------------------------------------------------------
 // InsForge AI: pick the next action from a screenshot + element list
 // ---------------------------------------------------------------------------
@@ -180,29 +210,46 @@ async function decide(
   els: Interactive[],
   consoleErrors: string[],
   history: string[],
-  remaining: number
+  remaining: number,
+  customSystemPrompt?: string,
+  customUserPrompt?: string
 ): Promise<Decision> {
-  const userText = [
-    `GOAL: ${goal}`,
-    `CURRENT URL: ${pageUrl}`,
-    `PAGE TITLE: ${title || "(none)"}`,
-    `STEPS REMAINING: ${remaining}`,
-    history.length
-      ? `ACTIONS ALREADY TAKEN (do not repeat):\n${history.map((h, i) => `${i + 1}. ${h}`).join("\n")}`
-      : `ACTIONS ALREADY TAKEN: none yet`,
-    consoleErrors.length
-      ? `RECENT CONSOLE ERRORS:\n${consoleErrors.slice(-5).join("\n")}`
-      : "RECENT CONSOLE ERRORS: none",
-    `VISIBLE PAGE TEXT:\n${text || "(empty page)"}`,
-    `INTERACTIVE ELEMENTS:\n${describeElements(els)}`,
-    remaining <= 1
-      ? `This is your LAST step — you must return a "finish" action with your verdict.`
-      : `Decide the single best next action.`,
-  ].join("\n\n");
+  const userText = customUserPrompt || buildUserPrompt(goal, pageUrl, title, text, els, consoleErrors, history, remaining);
+  const systemText = customSystemPrompt || SYSTEM_PROMPT;
 
   const content = await chat([
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: systemText },
     { role: "user", content: userText },
+  ]);
+  return parseDecision(content);
+}
+
+// Build prompts without executing AI call (for review/editing)
+function buildPrompts(
+  goal: string,
+  pageUrl: string,
+  title: string,
+  text: string,
+  els: Interactive[],
+  consoleErrors: string[],
+  history: string[],
+  remaining: number
+): { systemPrompt: string; userPrompt: string } {
+  const userPrompt = buildUserPrompt(goal, pageUrl, title, text, els, consoleErrors, history, remaining);
+  return {
+    systemPrompt: SYSTEM_PROMPT,
+    userPrompt,
+  };
+}
+
+// Execute AI call with provided prompts (for edited prompts)
+async function decideWithPrompts(
+  systemPrompt: string,
+  userPrompt: string
+): Promise<Decision> {
+  const content = await chat([
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
   ]);
   return parseDecision(content);
 }
@@ -280,6 +327,39 @@ async function persistStart(rec: VerificationRecord) {
     },
   ]);
   if (error) console.error("[computah] persistStart failed:", error);
+}
+
+async function savePromptForReview(
+  verificationId: string,
+  stepIdx: number,
+  systemPrompt: string,
+  userPrompt: string
+) {
+  const insforge = getInsforge();
+  const { error } = await insforge.database.from("prompt_reviews").insert([
+    {
+      verification_id: verificationId,
+      step_idx: stepIdx,
+      system_prompt: systemPrompt,
+      user_prompt: userPrompt,
+    },
+  ]);
+  if (error) console.error("[computah] savePromptForReview failed:", error);
+}
+
+async function getPromptReview(verificationId: string, stepIdx: number) {
+  const insforge = getInsforge();
+  const { data, error } = await insforge.database
+    .from("prompt_reviews")
+    .select("*")
+    .eq("verification_id", verificationId)
+    .eq("step_idx", stepIdx)
+    .single();
+  if (error) {
+    console.error("[computah] getPromptReview failed:", error);
+    return null;
+  }
+  return data;
 }
 
 async function persistFinish(rec: VerificationRecord) {
@@ -363,6 +443,28 @@ export async function runVerification(req: VerifyRequest): Promise<VerificationR
       const stepErrors = drain();
 
       const history = rec.steps.map((s) => s.action);
+
+      // If reviewing prompts on first step, build and return them instead of executing
+      if (req.reviewPrompts && i === 0) {
+        const prompts = buildPrompts(
+          req.goal,
+          page.url(),
+          title,
+          text,
+          els,
+          stepErrors,
+          history,
+          maxSteps - i
+        );
+        await savePromptForReview(id, i, prompts.systemPrompt, prompts.userPrompt);
+        rec.status = "review_pending";
+        await persistFinish(rec);
+        await context.close();
+        // Return the record with a special status indicating review is pending
+        // The prompts can be retrieved via getPromptReview
+        return rec;
+      }
+
       let decision: Decision;
       try {
         decision = await decide(
@@ -373,7 +475,9 @@ export async function runVerification(req: VerifyRequest): Promise<VerificationR
           els,
           stepErrors,
           history,
-          maxSteps - i
+          maxSteps - i,
+          i === 0 ? req.customSystemPrompt : undefined,
+          i === 0 ? req.customUserPrompt : undefined
         );
       } catch (err) {
         rec.steps.push({
@@ -445,3 +549,6 @@ function buildSummary(rec: VerificationRecord): string {
   const errs = rec.console_errors.length ? ` ${rec.console_errors.length} console/network error(s).` : "";
   return `${verdict} in ${rec.steps.length} step(s).${errs} ${rec.reason ?? ""}`.trim();
 }
+
+// Export functions for prompt review
+export { buildPrompts, decideWithPrompts, SYSTEM_PROMPT };

@@ -5,9 +5,42 @@ export type VerifyRequest = {
   goal: string;
   /** Max number of browser actions Computah may take. Default 8. */
   maxSteps?: number;
+  /** If true, pause before the first AI decision to allow prompt review/editing. */
+  reviewPrompts?: boolean;
+  /** Optional custom system prompt to override the default. */
+  customSystemPrompt?: string;
+  /** Optional custom user prompt to override the default. */
+  customUserPrompt?: string;
 };
 
-export type VerificationStatus = "running" | "passed" | "failed" | "error";
+export type PromptReview = {
+  /** Verification session ID. */
+  sessionId: string;
+  /** Current step index. */
+  stepIdx: number;
+  /** The system prompt that will be sent to the AI. */
+  systemPrompt: string;
+  /** The user message that will be sent to the AI. */
+  userPrompt: string;
+  /** Screenshot URL of the current page state. */
+  screenshotUrl: string | null;
+  /** Current page state for context. */
+  pageTitle: string;
+  pageUrl: string;
+};
+
+export type PromptEditRequest = {
+  /** Verification session ID. */
+  sessionId: string;
+  /** Step index to continue from. */
+  stepIdx: number;
+  /** Edited system prompt. */
+  systemPrompt: string;
+  /** Edited user prompt. */
+  userPrompt: string;
+};
+
+export type VerificationStatus = "running" | "passed" | "failed" | "error" | "review_pending";
 
 /** One action Computah took while driving the browser. */
 export type Step = {

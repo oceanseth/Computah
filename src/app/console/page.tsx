@@ -26,6 +26,7 @@ const EXAMPLES = [
 
 function Verdict({ passed, status }: { passed: boolean | null; status: string }) {
   if (status === "running") return <span className="mono text-accent">● running</span>;
+  if (status === "review_pending") return <span className="mono text-accent">✎ awaiting review</span>;
   if (status === "error") return <span className="mono text-fail">⚠ error</span>;
   return passed ? (
     <span className="mono text-pass">✓ PASS</span>
@@ -42,6 +43,11 @@ export default function Console() {
   const [result, setResult] = useState<VerificationRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [reviewPrompts, setReviewPrompts] = useState(false);
+  const [systemPrompt, setSystemPrompt] = useState<string | null>(null);
+  const [userPrompt, setUserPrompt] = useState<string | null>(null);
+  const [customSystemPrompt, setCustomSystemPrompt] = useState<string>("");
+  const [customUserPrompt, setCustomUserPrompt] = useState<string>("");
 
   const loadSessions = useCallback(async () => {
     try {
@@ -62,15 +68,87 @@ export default function Console() {
     setRunning(true);
     setResult(null);
     setError(null);
+    setSystemPrompt(null);
+    setUserPrompt(null);
     try {
       const r = await fetch("/api/verify", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url, goal, maxSteps }),
+        body: JSON.stringify({
+          url,
+          goal,
+          maxSteps,
+          reviewPrompts,
+          customSystemPrompt: customSystemPrompt || undefined,
+          customUserPrompt: customUserPrompt || undefined,
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Verification failed");
+      const rec = j as VerificationRecord;
+
+      // If prompts are pending review, fetch them
+      if (rec.status === "review_pending") {
+        try {
+          const pr = await fetch(`/api/prompts?sessionId=${rec.id}&step=0`);
+          const pj = await pr.json();
+          setSystemPrompt(pj.systemPrompt);
+          setUserPrompt(pj.userPrompt);
+          setCustomSystemPrompt(pj.systemPrompt);
+          setCustomUserPrompt(pj.userPrompt);
+          setResult(rec);
+        } catch (err) {
+          setError(`Failed to load prompts: ${String(err instanceof Error ? err.message : err)}`);
+          setResult(rec);
+        }
+      } else {
+        setResult(rec);
+        loadSessions();
+      }
+    } catch (err) {
+      setError(String(err instanceof Error ? err.message : err));
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  async function resumeWithEdits(e: React.FormEvent) {
+    e.preventDefault();
+    if (!result) return;
+
+    setRunning(true);
+    setError(null);
+    try {
+      // Mark prompts as edited
+      await fetch("/api/prompts", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          sessionId: result.id,
+          stepIdx: 0,
+          systemPrompt: customSystemPrompt,
+          userPrompt: customUserPrompt,
+        }),
+      });
+
+      // Re-run verification with edited prompts
+      const r = await fetch("/api/verify", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          url,
+          goal,
+          maxSteps,
+          reviewPrompts: false,
+          customSystemPrompt,
+          customUserPrompt,
+        }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Verification failed");
       setResult(j as VerificationRecord);
+      setSystemPrompt(null);
+      setUserPrompt(null);
       loadSessions();
     } catch (err) {
       setError(String(err instanceof Error ? err.message : err));
@@ -123,6 +201,15 @@ export default function Console() {
               className="mono ml-2 w-16 rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-accent"
             />
           </label>
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={reviewPrompts}
+              onChange={(e) => setReviewPrompts(e.target.checked)}
+              className="rounded border border-border"
+            />
+            <span className="mono text-muted">Review prompts</span>
+          </label>
           <button
             type="submit"
             disabled={running}
@@ -161,7 +248,61 @@ export default function Console() {
         </div>
       )}
 
-      {result && (
+      {result && result.status === "review_pending" && systemPrompt && userPrompt && (
+        <div className="mt-4 rounded-xl border border-border bg-panel p-5">
+          <h2 className="mono mb-4 text-sm font-semibold">Review AI Prompts</h2>
+          <p className="mb-4 text-xs text-muted">
+            Edit the prompts below if you want to adjust the AI's behavior. This is useful for fixing facts, adding context, or tuning instructions.
+          </p>
+
+          <form onSubmit={resumeWithEdits} className="space-y-4">
+            <div>
+              <label className="mono mb-1 block text-xs text-muted">SYSTEM PROMPT</label>
+              <textarea
+                value={customSystemPrompt}
+                onChange={(e) => setCustomSystemPrompt(e.target.value)}
+                rows={6}
+                className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs font-mono outline-none focus:border-accent"
+              />
+            </div>
+
+            <div>
+              <label className="mono mb-1 block text-xs text-muted">USER PROMPT</label>
+              <textarea
+                value={customUserPrompt}
+                onChange={(e) => setCustomUserPrompt(e.target.value)}
+                rows={8}
+                className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs font-mono outline-none focus:border-accent"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                disabled={running}
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-background transition hover:opacity-90 disabled:opacity-50"
+              >
+                {running ? "Running…" : "Run with Edits"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSystemPrompt(null);
+                  setUserPrompt(null);
+                  setCustomSystemPrompt("");
+                  setCustomUserPrompt("");
+                  setResult(null);
+                }}
+                className="rounded-lg border border-border px-4 py-2 text-sm transition hover:bg-background/50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {result && result.status !== "review_pending" && (
         <div className="mt-4 rounded-xl border border-border bg-panel p-5">
           <div className="flex items-center justify-between">
             <Verdict passed={result.passed} status={result.status} />

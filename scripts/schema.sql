@@ -17,3 +17,15 @@ create table if not exists verifications (
 );
 
 create index if not exists verifications_created_at_idx on verifications (created_at desc);
+
+create table if not exists prompt_reviews (
+  id               uuid primary key default gen_random_uuid(),
+  verification_id  uuid        not null references verifications(id) on delete cascade,
+  step_idx         integer     not null,
+  system_prompt    text        not null,
+  user_prompt      text        not null,
+  edited_at        timestamptz,
+  created_at       timestamptz not null default now()
+);
+
+create index if not exists prompt_reviews_verification_id_idx on prompt_reviews (verification_id);
