@@ -9,6 +9,16 @@
   --accent: #5eead4;
   --pass: #34d399;
   --fail: #f87171;
+
+  --shell-bg: #ffffff;
+  --shell-sidebar: #f5f4f2;
+  --shell-sidebar-active: #eeedea;
+  --shell-border: #e8e6e2;
+  --shell-text: #1c1c1a;
+  --shell-text-muted: #8a8780;
+  --shell-text-soft: #b8b5ac;
+  --shell-peach: #fde6d8;
+  --shell-coral: #f0844a;
 }
 
 @theme inline {
@@ -21,6 +31,16 @@
   --color-pass: var(--pass);
   --color-fail: var(--fail);
   --font-mono: var(--font-geist-mono);
+
+  --color-shell-bg: var(--shell-bg);
+  --color-shell-sidebar: var(--shell-sidebar);
+  --color-shell-sidebar-active: var(--shell-sidebar-active);
+  --color-shell-border: var(--shell-border);
+  --color-shell-text: var(--shell-text);
+  --color-shell-text-muted: var(--shell-text-muted);
+  --color-shell-text-soft: var(--shell-text-soft);
+  --color-shell-peach: var(--shell-peach);
+  --color-shell-coral: var(--shell-coral);
 }
 
 body {
