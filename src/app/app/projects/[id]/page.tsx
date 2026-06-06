@@ -62,6 +62,9 @@ export default function ProjectPage() {
   const [linkPlatform, setLinkPlatform] = useState("discord");
   const [linkExternalId, setLinkExternalId] = useState("");
   const [listening, setListening] = useState(false);
+  const [botToken, setBotToken] = useState("");
+  const [hasSavedToken, setHasSavedToken] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const feedRef = useRef<HTMLDivElement | null>(null);
 
@@ -78,6 +81,13 @@ export default function ProjectPage() {
     const list = (chans as Channel[]) ?? [];
     setChannels(list);
     setActiveChannel((cur) => cur ?? list[0] ?? null);
+    // settings are owner-only via RLS; non-owners just get no row
+    const { data: settings } = await db
+      .from("project_settings")
+      .select()
+      .eq("project_id", projectId);
+    const row = (settings as { discord_bot_token: string | null }[] | null)?.[0];
+    setHasSavedToken(Boolean(row?.discord_bot_token));
   }, [projectId]);
 
   const loadLinks = useCallback(async (channelId: string) => {
@@ -196,6 +206,33 @@ export default function ProjectPage() {
     void loadLinks(activeChannel.id);
   }
 
+  async function saveSettings(e: React.FormEvent) {
+    e.preventDefault();
+    if (!botToken.trim()) return;
+    const db = getInsforgeBrowser().database;
+    const { data: existing } = await db
+      .from("project_settings")
+      .select()
+      .eq("project_id", projectId);
+    const op =
+      (existing as unknown[] | null)?.length
+        ? db
+            .from("project_settings")
+            .update({ discord_bot_token: botToken.trim(), updated_at: new Date().toISOString() })
+            .eq("project_id", projectId)
+        : db
+            .from("project_settings")
+            .insert([{ project_id: projectId, discord_bot_token: botToken.trim() }]);
+    const { error } = await op;
+    if (error) {
+      setSettingsMsg(error.message || "save failed");
+    } else {
+      setSettingsMsg("saved ✓");
+      setHasSavedToken(true);
+      setBotToken("");
+    }
+  }
+
   function toggleVoice() {
     if (listening) {
       recognitionRef.current?.stop();
@@ -277,7 +314,7 @@ export default function ProjectPage() {
           {activeChannel && (
             <div className="mt-6">
               <div className="mono mb-2 text-xs uppercase tracking-wide text-muted">
-                connected platforms
+                channel sources
               </div>
               {links.length === 0 && (
                 <p className="text-xs text-muted">none yet</p>
@@ -309,6 +346,39 @@ export default function ProjectPage() {
                 >
                   Connect
                 </button>
+              </form>
+            </div>
+          )}
+
+          {project && user && project.owner_id === user.id && (
+            <div className="mt-6">
+              <div className="mono mb-2 text-xs uppercase tracking-wide text-muted">
+                settings
+              </div>
+              <form onSubmit={saveSettings} className="flex flex-col gap-1.5">
+                <label className="text-xs text-muted">
+                  Discord bot token{" "}
+                  {hasSavedToken && <span className="text-accent">(set)</span>}
+                </label>
+                <input
+                  type="password"
+                  placeholder={hasSavedToken ? "••••••• replace token" : "bot token"}
+                  value={botToken}
+                  onChange={(e) => setBotToken(e.target.value)}
+                  className="rounded-lg border border-border bg-panel px-2 py-1.5 text-xs outline-none focus:border-accent"
+                />
+                <button
+                  type="submit"
+                  disabled={!botToken.trim()}
+                  className="rounded-lg border border-border px-2 py-1.5 text-xs font-semibold transition hover:border-accent disabled:opacity-50"
+                >
+                  Save
+                </button>
+                {settingsMsg && <p className="text-xs text-muted">{settingsMsg}</p>}
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  Your bot reads &amp; relays the connected channels above. Needs View
+                  Channels, Send Messages, Read Message History + Message Content Intent.
+                </p>
               </form>
             </div>
           )}

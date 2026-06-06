@@ -81,6 +81,9 @@ export default function ProjectsPage() {
           <span className="text-muted">://app</span>
         </Link>
         <div className="flex items-center gap-4 text-sm text-muted">
+          <Link href="/app/voice" className="hover:text-foreground">
+            🎙️ Voice
+          </Link>
           <span>{user.email}</span>
           <button onClick={() => void signOut().then(() => router.push("/"))} className="hover:text-foreground">
             Sign out

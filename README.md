@@ -2,7 +2,7 @@
 
 **Platform-agnostic collaborative coding agents.**
 
-🌐 **Live:** [computah.vercel.app](https://computah.vercel.app)
+🌐 **Live:** [computah-mu.vercel.app](https://computah-mu.vercel.app)
 
 Computah brings people together to drive coding agents — from whatever platform
 they already talk on. Create a project in the web app, join its chat channel, then
@@ -12,7 +12,7 @@ that steers the agents, and the agents report back to every connected channel.
 
 The pieces:
 
-- **Web app** ([computah.vercel.app](https://computah.vercel.app)) — create a
+- **Web app** ([computah-mu.vercel.app](https://computah-mu.vercel.app)) — create a
   project, join its chat channel, connect external platforms *(in progress —
   currently the verification console)*
 - **Messaging bridge** — Composio-powered ingestion: Discord/Slack messages land
@@ -81,7 +81,7 @@ strangers on day 1, shipping by day's end.
 | **Deepgram** | Real-time voice transcription — the voice app turns spoken prompts into agent actions. |
 | **Limrun** | Built the mobile version of the app. |
 | **Memoir** | Posted about the project on X and LinkedIn. |
-| **Vercel** | Hosts the live app at [computah.vercel.app](https://computah.vercel.app). |
+| **Vercel** | Hosts the live app at [computah-mu.vercel.app](https://computah-mu.vercel.app). |
 
 ## Setup
 
