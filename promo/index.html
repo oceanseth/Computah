@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Geist";
+        src: url("assets/fonts/geist.woff2") format("woff2");
+        font-weight: 100 900;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: "Geist Mono";
+        src: url("assets/fonts/geist-mono.woff2") format("woff2");
+        font-weight: 100 900;
+        font-style: normal;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        margin: 0; width: 1920px; height: 1080px; overflow: hidden;
+        background: #0a0b0f;
+        font-family: "Geist", ui-sans-serif, sans-serif;
+        color: #e7e9ee;
+      }
+
+      .scene {
+        position: absolute; top: 0; left: 0; width: 1920px; height: 1080px;
+        overflow: hidden; background: #0a0b0f;
+      }
+      #s2, #s3, #s4, #s5, #s6 { opacity: 0; }
+      #s1 { z-index: 1; } #s2 { z-index: 2; } #s3 { z-index: 3; }
+      #s4 { z-index: 4; } #s5 { z-index: 5; } #s6 { z-index: 6; }
+
+      .glow {
+        position: absolute; width: 1400px; height: 900px; border-radius: 50%;
+        background: radial-gradient(closest-side, rgba(94, 234, 212, 0.13), rgba(94, 234, 212, 0));
+        pointer-events: none;
+      }
+      .wordmark { font-family: "Geist Mono", ui-monospace, monospace; font-weight: 700; }
+      .wordmark .a { color: #5eead4; }
+      .wordmark .m { color: #8a90a0; }
+      .kicker {
+        font-family: "Geist Mono", ui-monospace, monospace;
+        font-size: 22px; letter-spacing: 0.18em; text-transform: uppercase; color: #5eead4;
+      }
+      .chip {
+        font-family: "Geist Mono", ui-monospace, monospace;
+        background: #14161d; border: 1px solid #242833; border-radius: 999px;
+        padding: 16px 34px; font-size: 26px; color: #e7e9ee;
+      }
+      .card {
+        background: #14161d; border: 1px solid #242833; border-radius: 20px;
+      }
+
+      /* ---------------- scene 1 — team ---------------- */
+      #s1-content {
+        width: 100%; height: 100%; padding: 90px 140px;
+        display: flex; align-items: center; gap: 100px;
+      }
+      #s1-photo {
+        width: 760px; height: 760px; flex: none; border-radius: 24px;
+        border: 1px solid #242833; overflow: hidden;
+        box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6);
+      }
+      #s1-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      #s1-text { display: flex; flex-direction: column; gap: 28px; }
+      #s1-title { font-size: 104px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+      #s1-sub { font-size: 30px; font-weight: 350; color: #9aa1b1; max-width: 640px; line-height: 1.5; }
+      #s1-names { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+      #s1-names div {
+        font-family: "Geist Mono", ui-monospace, monospace;
+        font-size: 24px; color: #9aa1b1; letter-spacing: 0.01em;
+      }
+      #s1-names span { color: #e7e9ee; }
+
+      /* ---------------- scene 2 — tagline ---------------- */
+      #s2-content {
+        width: 100%; height: 100%; padding: 120px 200px;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        gap: 40px; text-align: center;
+      }
+      #s2-wordmark { font-size: 44px; }
+      #s2-headline {
+        font-size: 116px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.04;
+        max-width: 1500px;
+      }
+      #s2-headline em { font-style: normal; color: #5eead4; }
+      #s2-sub {
+        font-family: "Geist Mono", ui-monospace, monospace;
+        font-size: 28px; color: #9aa1b1; letter-spacing: 0.06em;
+      }
+
+      /* ---------------- scene 3 — connect ---------------- */
+      #s3-content {
+        width: 100%; height: 100%; padding: 100px 160px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 48px;
+      }
+      #s3-headline { font-size: 84px; font-weight: 800; letter-spacing: -0.035em; text-align: center; }
+      #s3-chips { display: flex; gap: 26px; }
+      #s3-arrow { font-size: 48px; color: #5eead4; }
+      #s3-hub {
+        display: flex; flex-direction: column; gap: 14px;
+        padding: 44px 70px; align-items: center;
+      }
+      #s3-hub-name {
+        font-family: "Geist Mono", ui-monospace, monospace;
+        font-size: 40px; font-weight: 700; color: #5eead4;
+      }
+      #s3-hub-sub { font-size: 26px; font-weight: 350; color: #9aa1b1; }
+
+      /* ---------------- scene 4 — verify ---------------- */
+      #s4-content {
+        width: 100%; height: 100%; padding: 100px 160px;
+        display: flex; align-items: center; justify-content: center; gap: 90px;
+      }
+      #s4-left { display: flex; flex-direction: column; gap: 30px; max-width: 760px; }
+      #s4-headline { font-size: 88px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.05; }
+      #s4-sub { font-size: 30px; font-weight: 350; color: #9aa1b1; line-height: 1.5; }
+      #s4-term {
+        width: 660px; padding: 40px 46px; flex: none;
+        display: flex; flex-direction: column; gap: 20px;
+        font-family: "Geist Mono", ui-monospace, monospace; font-size: 25px; line-height: 1.6;
+      }
+      #s4-term .cmd { color: #5eead4; }
+      #s4-term .dim { color: #9aa1b1; }
+      #s4-verdict {
+        align-self: flex-start; margin-top: 6px;
+        font-family: "Geist Mono", ui-monospace, monospace;
+        background: rgba(52, 211, 153, 0.12); border: 1px solid #34d399; color: #34d399;
+        border-radius: 12px; padding: 14px 30px; font-size: 32px; font-weight: 700;
+      }
+
+      /* ---------------- scene 5 — sponsors ---------------- */
+      #s5-content {
+        width: 100%; height: 100%; padding: 110px 180px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 56px;
+      }
+      #s5-headline { font-size: 72px; font-weight: 800; letter-spacing: -0.035em; }
+      #s5-grid {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px; width: 100%;
+      }
+      .s5-cell {
+        padding: 30px 26px; display: flex; flex-direction: column; gap: 8px;
+        background: #14161d; border: 1px solid #242833; border-radius: 16px;
+      }
+      .s5-cell b { font-size: 28px; font-weight: 700; color: #e7e9ee; }
+      .s5-cell span {
+        font-size: 19px; font-weight: 350; color: #9aa1b1; line-height: 1.4;
+      }
+
+      /* ---------------- scene 6 — CTA ---------------- */
+      #s6-content {
+        width: 100%; height: 100%; padding: 120px 200px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 38px; text-align: center;
+      }
+      #s6-wordmark { font-size: 120px; letter-spacing: -0.02em; }
+      #s6-cta {
+        font-family: "Geist Mono", ui-monospace, monospace;
+        background: #5eead4; color: #0a0b0f; border-radius: 16px;
+        padding: 24px 56px; font-size: 36px; font-weight: 700;
+      }
+      #s6-url {
+        font-family: "Geist Mono", ui-monospace, monospace;
+        font-size: 30px; color: #9aa1b1; letter-spacing: 0.04em;
+      }
+      #s6-tag { font-size: 26px; font-weight: 350; color: #9aa1b1; }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="28"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- scene 1 — the team -->
+      <div id="s1" class="scene" data-layout-allow-overflow>
+        <div class="glow" data-layout-ignore style="top: -300px; left: 1100px"></div>
+        <div id="s1-content">
+          <div id="s1-photo"><img src="team.png" alt="Team Stackers" /></div>
+          <div id="s1-text">
+            <div class="kicker" id="s1-kicker">InsForge Agentic Dev Tools Hackathon</div>
+            <div id="s1-title">Team<br />Stackers</div>
+            <div id="s1-sub">Strangers on day one. Shipping by day&rsquo;s end.</div>
+            <div id="s1-names">
+              <div><span>Abhishek Jani</span> · <span>Seth Caldwell</span></div>
+              <div><span>Abir Biswas</span> · <span>Pranav Uppiliappan</span> · <span>Ayush Jain</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- scene 2 — tagline -->
+      <div id="s2" class="scene" data-layout-allow-overflow>
+        <div class="glow" data-layout-ignore style="top: 90px; left: 260px"></div>
+        <div id="s2-content">
+          <div class="wordmark" id="s2-wordmark"><span class="a">computah</span><span class="m">://</span></div>
+          <div id="s2-headline">Platform-agnostic <em>collaborative</em> coding agents</div>
+          <div id="s2-sub">&lt;conversation. code. collaborate.&gt;</div>
+        </div>
+      </div>
+
+      <!-- scene 3 — connect everything -->
+      <div id="s3" class="scene" data-layout-allow-overflow>
+        <div class="glow" data-layout-ignore style="top: 400px; left: 260px"></div>
+        <div id="s3-content">
+          <div id="s3-headline">Every conversation, one project</div>
+          <div id="s3-chips">
+            <div class="chip">🟣 Discord</div>
+            <div class="chip">🟦 Slack</div>
+            <div class="chip">🎙️ Voice</div>
+            <div class="chip">💬 Web</div>
+            <div class="chip">🎭 Maskord</div>
+          </div>
+          <div id="s3-arrow">▼</div>
+          <div class="card" id="s3-hub">
+            <div id="s3-hub-name"># general — your project channel</div>
+            <div id="s3-hub-sub">messages replicate to every connected platform — context lives everywhere</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- scene 4 — self-verifying agents -->
+      <div id="s4" class="scene" data-layout-allow-overflow>
+        <div class="glow" data-layout-ignore style="top: -250px; left: -200px"></div>
+        <div id="s4-content">
+          <div id="s4-left">
+            <div id="s4-headline">Agents that verify their own work</div>
+            <div id="s4-sub">
+              Computah opens the change in a real browser, drives it like a QA tester,
+              and reports back to every channel.
+            </div>
+          </div>
+          <div class="card" id="s4-term">
+            <div><span class="cmd">computah_verify</span>({ url, goal })</div>
+            <div class="dim">▸ opens Chromium · clicks · types</div>
+            <div class="dim">▸ watches the console</div>
+            <div class="dim">▸ judges the goal with InsForge AI</div>
+            <div id="s4-verdict">✓ PASS</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- scene 5 — powered by -->
+      <div id="s5" class="scene" data-layout-allow-overflow>
+        <div class="glow" data-layout-ignore style="top: 500px; left: 900px"></div>
+        <div id="s5-content">
+          <div id="s5-headline">Built on the sponsors</div>
+          <div id="s5-grid">
+            <div class="s5-cell"><b>InsForge</b><span>the entire backend — Postgres, storage, AI</span></div>
+            <div class="s5-cell"><b>Composio</b><span>messaging integrations &amp; OAuth tools</span></div>
+            <div class="s5-cell"><b>Anthropic</b><span>Claude Agent SDK runs the loop</span></div>
+            <div class="s5-cell"><b>Deepgram</b><span>real-time voice transcription</span></div>
+            <div class="s5-cell"><b>Limrun</b><span>the mobile app build</span></div>
+            <div class="s5-cell"><b>Memoir</b><span>X &amp; LinkedIn storytelling</span></div>
+            <div class="s5-cell"><b>Vercel</b><span>hosting at computah.vercel.app</span></div>
+            <div class="s5-cell"><b>HeyGen</b><span>this very video — HyperFrames</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- scene 6 — CTA (final: fade out allowed) -->
+      <div id="s6" class="scene" data-layout-allow-overflow>
+        <div class="glow" data-layout-ignore style="top: 100px; left: 260px"></div>
+        <div id="s6-content">
+          <div class="wordmark" id="s6-wordmark"><span class="a">computah</span><span class="m">://</span></div>
+          <div id="s6-cta">Create a project ▸</div>
+          <div id="s6-url">computah.vercel.app</div>
+          <div id="s6-tag">Strangers today. Building together tomorrow.</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      /* ============ scene 1 entrances (0 – 5s) ============ */
+      tl.from("#s1-photo", { x: -120, opacity: 0, duration: 0.8, ease: "power3.out" }, 0.15);
+      tl.from("#s1-kicker", { y: 24, opacity: 0, duration: 0.5, ease: "power2.out" }, 0.45);
+      tl.from("#s1-title", { y: 50, opacity: 0, duration: 0.7, ease: "expo.out" }, 0.6);
+      tl.from("#s1-sub", { y: 30, opacity: 0, duration: 0.5, ease: "sine.out" }, 0.85);
+      tl.from("#s1-names div", { y: 20, opacity: 0, duration: 0.45, ease: "power2.out", stagger: 0.12 }, 1.05);
+
+      /* ---- transition 1→2: blur crossfade (opening, gentle) ---- */
+      tl.to("#s1", { filter: "blur(12px)", scale: 1.03, opacity: 0, duration: 0.55, ease: "power2.inOut" }, 4.5);
+      tl.fromTo("#s2",
+        { filter: "blur(12px)", scale: 0.97, opacity: 0 },
+        { filter: "blur(0px)", scale: 1, opacity: 1, duration: 0.55, ease: "power2.inOut" }, 4.6);
+
+      /* ============ scene 2 entrances (~5 – 10s) ============ */
+      tl.from("#s2-wordmark", { y: -30, opacity: 0, duration: 0.5, ease: "power2.out" }, 5.2);
+      tl.from("#s2-headline", { y: 60, opacity: 0, duration: 0.8, ease: "expo.out" }, 5.4);
+      tl.from("#s2-sub", { opacity: 0, duration: 0.6, ease: "sine.out" }, 5.9);
+
+      /* ---- transition 2→3: push slide (primary) ---- */
+      tl.to("#s2", { x: -1920, duration: 0.5, ease: "power3.inOut" }, 9.6);
+      tl.fromTo("#s3", { x: 1920, opacity: 1 }, { x: 0, duration: 0.5, ease: "power3.inOut" }, 9.6);
+
+      /* ============ scene 3 entrances (~10 – 15.5s) ============ */
+      tl.from("#s3-headline", { y: 45, opacity: 0, duration: 0.6, ease: "expo.out" }, 10.3);
+      tl.from("#s3-chips .chip", { y: 36, opacity: 0, duration: 0.45, ease: "back.out(1.6)", stagger: 0.1 }, 10.55);
+      tl.from("#s3-arrow", { scaleY: 0, opacity: 0, transformOrigin: "top center", duration: 0.4, ease: "power2.out" }, 11.15);
+      tl.from("#s3-hub", { y: 50, opacity: 0, duration: 0.6, ease: "power3.out" }, 11.35);
+
+      /* ---- transition 3→4: vertical push (topic change) ---- */
+      tl.to("#s3", { y: -1080, duration: 0.5, ease: "power3.inOut" }, 15.1);
+      tl.fromTo("#s4", { y: 1080, opacity: 1 }, { y: 0, duration: 0.5, ease: "power3.inOut" }, 15.1);
+
+      /* ============ scene 4 entrances (~15.6 – 21s) ============ */
+      tl.from("#s4-headline", { x: -60, opacity: 0, duration: 0.65, ease: "expo.out" }, 15.85);
+      tl.from("#s4-sub", { x: -40, opacity: 0, duration: 0.5, ease: "sine.out" }, 16.1);
+      tl.from("#s4-term", { y: 60, opacity: 0, duration: 0.6, ease: "power3.out" }, 16.25);
+      tl.from("#s4-term .dim", { opacity: 0, duration: 0.35, ease: "power1.out", stagger: 0.18 }, 16.6);
+      tl.from("#s4-verdict", { scale: 0.6, opacity: 0, duration: 0.5, ease: "back.out(2.2)" }, 17.6);
+
+      /* ---- transition 4→5: push slide (primary) ---- */
+      tl.to("#s4", { x: -1920, duration: 0.5, ease: "power3.inOut" }, 20.6);
+      tl.fromTo("#s5", { x: 1920, opacity: 1 }, { x: 0, duration: 0.5, ease: "power3.inOut" }, 20.6);
+
+      /* ============ scene 5 entrances (~21.1 – 24.5s) ============ */
+      tl.from("#s5-headline", { y: 40, opacity: 0, duration: 0.55, ease: "expo.out" }, 21.3);
+      tl.from(".s5-cell", { y: 40, opacity: 0, duration: 0.45, ease: "power2.out", stagger: 0.07 }, 21.55);
+
+      /* ---- transition 5→6: blur crossfade (outro, gentle) ---- */
+      tl.to("#s5", { filter: "blur(12px)", scale: 1.03, opacity: 0, duration: 0.6, ease: "power2.inOut" }, 24.4);
+      tl.fromTo("#s6",
+        { filter: "blur(12px)", scale: 0.97, opacity: 0 },
+        { filter: "blur(0px)", scale: 1, opacity: 1, duration: 0.6, ease: "power2.inOut" }, 24.5);
+
+      /* ============ scene 6 entrances (~25 – 28s) ============ */
+      tl.from("#s6-wordmark", { scale: 0.92, opacity: 0, duration: 0.6, ease: "power3.out" }, 25.1);
+      tl.from("#s6-cta", { y: 40, opacity: 0, duration: 0.5, ease: "back.out(1.7)" }, 25.45);
+      tl.from("#s6-url", { opacity: 0, duration: 0.5, ease: "sine.out" }, 25.75);
+      tl.from("#s6-tag", { opacity: 0, duration: 0.5, ease: "power1.out" }, 26.0);
+
+      /* final scene fade out (allowed only here) */
+      tl.to("#s6-content", { opacity: 0, duration: 0.7, ease: "power2.in" }, 27.2);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

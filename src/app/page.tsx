@@ -89,6 +89,24 @@ export default function Landing() {
         </div>
       </header>
 
+      {/* product slideshow (HyperFrames render) */}
+      <section className="mx-auto w-full max-w-5xl px-6 pb-20">
+        <div className="overflow-hidden rounded-2xl border border-border bg-panel shadow-2xl">
+          <video
+            src="/promo.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+            poster="/team.png"
+            className="block w-full"
+          />
+        </div>
+        <div className="mono mt-3 text-center text-xs text-muted">
+          made with HeyGen HyperFrames
+        </div>
+      </section>
+
       {/* the loop / demo narrative */}
       <section className="mx-auto w-full max-w-4xl px-6 pb-20">
         <div className="overflow-hidden rounded-2xl border border-border bg-panel shadow-2xl">
