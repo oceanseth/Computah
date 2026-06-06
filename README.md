@@ -2,6 +2,8 @@
 
 **The self-verifying computer for coding agents.**
 
+🌐 **Live:** [computah.vercel.app](https://computah.vercel.app)
+
 Your agent ships a change. Computah opens it in a *real* browser, drives it like a QA
 tester toward a plain-English goal, watches for console errors, and returns a **PASS/FAIL
 verdict the agent can act on** — closing the build → test → fix loop without a human.
@@ -37,6 +39,33 @@ Computah MCP server ──HTTP──► Next.js /api/verify
 > → Computah opens it, types credentials, clicks **Sign in**, screenshots the result.
 > → InsForge AI: *"FAIL — the button does nothing, no navigation, console error `handleSubmit is not defined`."*
 > → Agent fixes it, re-runs Computah → **PASS**.
+
+## The team
+
+Built by **Team Stackers** at the **InsForge Agentic Dev Tools Hackathon** —
+strangers on day 1, shipping by day's end.
+
+![Team Stackers — conversation. code. collaborate.](public/team.png)
+
+| | |
+| --- | --- |
+| **Abhishek Jani** | [LinkedIn](https://www.linkedin.com/in/abhishek-jani-97b8781a7/) |
+| **Seth Caldwell** | [LinkedIn](https://www.linkedin.com/in/sethinsd) |
+| **Abir Biswas** | [LinkedIn](https://www.linkedin.com/in/abir-biswas/) |
+| **Pranav Uppiliappan** | [LinkedIn](https://www.linkedin.com/in/pranav-uppiliappan/) |
+| **Ayush Jain** | [LinkedIn](https://www.linkedin.com/in/ayush-jain-uiuc) |
+
+## How we used the sponsors
+
+| Sponsor | What it powers |
+| --- | --- |
+| **InsForge** | The entire backend — Postgres (verification sessions), Storage (per-step screenshots), and the AI gateway that drives + judges the browser. |
+| **Composio** | OAuth + tool execution for the messaging layer — connecting **Discord** and **Slack** (and **Maskord**, once it lands on Composio) as source/destination platforms so people can drive the agents together. |
+| **Anthropic** | The Claude Agent SDK runs the agent loop behind the voice app. |
+| **Deepgram** | Real-time voice transcription — the voice app turns spoken prompts into agent actions. |
+| **Limrun** | Built the mobile version of the app. |
+| **Memoir** | Posted about the project on X and LinkedIn. |
+| **Vercel** | Hosts the live app at [computah.vercel.app](https://computah.vercel.app). |
 
 ## Setup
 
