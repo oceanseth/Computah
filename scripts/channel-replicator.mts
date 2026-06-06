@@ -71,28 +71,36 @@ async function main() {
     console.error("DISCORD_BOT_TOKEN missing from .env.local");
     process.exit(1);
   }
-  const discordHeaders = {
-    Authorization: `Bot ${botToken}`,
+  const headersFor = (token: string) => ({
+    Authorization: `Bot ${token}`,
     "Content-Type": "application/json",
-  };
+  });
 
-  // who am I — so relayed copies are never re-ingested
-  const meRes = await fetch(`${DISCORD_API}/users/@me`, { headers: discordHeaders });
-  if (!meRes.ok) {
-    console.error(`Bot token rejected: HTTP ${meRes.status}`);
+  // bot user id per token — relayed copies are never re-ingested
+  const botIdByToken = new Map<string, string>();
+  async function botIdFor(token: string): Promise<string | null> {
+    if (botIdByToken.has(token)) return botIdByToken.get(token)!;
+    const res = await fetch(`${DISCORD_API}/users/@me`, { headers: headersFor(token) });
+    if (!res.ok) return null;
+    const me = (await res.json()) as { id: string; username: string };
+    botIdByToken.set(token, me.id);
+    console.log(`🤖 token resolves to bot ${me.username} (${me.id})`);
+    return me.id;
+  }
+  if (!(await botIdFor(botToken))) {
+    console.error("Default DISCORD_BOT_TOKEN rejected by Discord");
     process.exit(1);
   }
-  const me = (await meRes.json()) as { id: string; username: string };
-  console.log(`🤖 Replicating as ${me.username} (${me.id}); ${POLL_MS / 1000}s poll. Ctrl-C to stop.\n`);
+  console.log(`Replicating; ${POLL_MS / 1000}s poll. Ctrl-C to stop.\n`);
 
   const insforge = loadInsforge();
   const inboundWatermarks = new Map<string, bigint>(); // discord channel → last snowflake
   let outboundWatermark = new Date().toISOString(); // only fan out rows newer than startup
 
-  async function sendToDiscord(channelId: string, content: string) {
+  async function sendToDiscord(channelId: string, content: string, token: string) {
     const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
       method: "POST",
-      headers: discordHeaders,
+      headers: headersFor(token),
       body: JSON.stringify({ content: content.slice(0, 1900) }),
     });
     if (!res.ok) {
@@ -111,15 +119,32 @@ async function main() {
       const links = (linkRows as Link[]) ?? [];
       const linkByExternal = new Map(links.map((l) => [l.external_channel_id, l]));
 
+      // per-project bot tokens (project settings from the web UI) — fall back
+      // to the default env token
+      const { data: chanRows } = await insforge.database.from("channels").select();
+      const projectByHub = new Map(
+        ((chanRows as { id: string; project_id: string }[]) ?? []).map((c) => [c.id, c.project_id])
+      );
+      const { data: settingRows } = await insforge.database.from("project_settings").select();
+      const tokenByProject = new Map(
+        ((settingRows as { project_id: string; discord_bot_token: string | null }[]) ?? [])
+          .filter((s) => s.discord_bot_token)
+          .map((s) => [s.project_id, s.discord_bot_token as string])
+      );
+      const tokenForHub = (hubId: string | undefined) =>
+        (hubId && tokenByProject.get(projectByHub.get(hubId) ?? "")) || botToken;
+
       // ---------------- INBOUND: linked discord channels → platform_messages
       const watchIds = new Set([
         ...links.map((l) => l.external_channel_id),
         ...extraChannels,
       ]);
       for (const channelId of watchIds) {
+        const token = tokenForHub(linkByExternal.get(channelId)?.channel_id);
+        const ourBotId = await botIdFor(token);
         const res = await fetch(
           `${DISCORD_API}/channels/${channelId}/messages?limit=50`,
-          { headers: discordHeaders }
+          { headers: headersFor(token) }
         );
         if (!res.ok) {
           console.error(`✗ read #${channelId}: HTTP ${res.status}`);
@@ -130,7 +155,7 @@ async function main() {
         // advance the watermark over everything seen (incl. our own relays)
         const maxId = all.reduce((mx, m) => (BigInt(m.id) > mx ? BigInt(m.id) : mx), watermark);
         const fresh = all
-          .filter((m) => BigInt(m.id) > watermark && m.author?.id !== me.id)
+          .filter((m) => BigInt(m.id) > watermark && m.author?.id !== ourBotId)
           .sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
         inboundWatermarks.set(channelId, maxId);
         for (const msg of fresh) {
@@ -184,7 +209,8 @@ async function main() {
         const badge = row.platform === "voice" ? "🎙️" : row.platform === "web" ? "💬" : "🔁";
         const relay = `${badge} **${row.author_name ?? "someone"}**: ${row.content}`;
         console.log(`↪ fan-out (${row.platform}) "${row.content.slice(0, 60)}" → ${targets.length} channel(s)`);
-        for (const t of targets) await sendToDiscord(t.external_channel_id, relay);
+        const token = tokenForHub(hubId);
+        for (const t of targets) await sendToDiscord(t.external_channel_id, relay, token);
       }
     } catch (err) {
       console.error("✗ cycle error:", (err as Error)?.message || err);
