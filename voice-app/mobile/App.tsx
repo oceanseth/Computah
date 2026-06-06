@@ -323,7 +323,7 @@ function MemoryCard({ m }: { m: Memory }) {
       <View style={styles.memHead}>
         <View style={[styles.kindDot, { backgroundColor: KIND_COLOR[m.kind] ?? "#5eead4" }]} />
         <Text style={[styles.kind, { color: KIND_COLOR[m.kind] ?? "#5eead4" }]}>
-          {m.kind.replace("_", " ")}
+          {m.kind.replace("_", " ").toUpperCase()}
         </Text>
       </View>
       <Text style={styles.memContent}>{m.content}</Text>
@@ -434,8 +434,8 @@ const styles = StyleSheet.create({
   },
   memHead: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
   kindDot: { width: 8, height: 8, borderRadius: 4 },
-  kind: { fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
-  memContent: { color: "#e7e9ee", fontSize: 15, lineHeight: 21 },
+  kind: { fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
+  memContent: { color: "#e7e9ee", fontSize: 15, lineHeight: 21, flexWrap: "wrap" },
   tags: { color: "#5b616e", fontSize: 12, marginTop: 6 },
   link: { color: "#5eead4", fontSize: 13, fontWeight: "600" },
   hint: { color: "#5b616e", fontSize: 13, marginTop: 8, lineHeight: 19 },
