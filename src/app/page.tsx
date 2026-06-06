@@ -37,11 +37,14 @@ export default function Landing() {
           <a href="#mcp" className="hidden hover:text-foreground sm:block">
             For agents
           </a>
+          <Link href="/login" className="hidden hover:text-foreground sm:block">
+            Sign in
+          </Link>
           <Link
-            href="/console"
+            href="/app"
             className="rounded-lg bg-accent px-4 py-1.5 font-semibold text-background transition hover:opacity-90"
           >
-            Launch console ▸
+            Open app ▸
           </Link>
         </div>
       </nav>
@@ -52,21 +55,27 @@ export default function Landing() {
           <Pill>InsForge Agentic Dev Tools Hackathon</Pill>
         </div>
         <h1 className="mx-auto max-w-4xl text-balance text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">
-          The self-verifying computer for{" "}
+          Platform-agnostic collaborative{" "}
           <span className="text-accent">coding agents</span>
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-balance text-lg text-muted">
-          Your agent ships a change. Computah opens it in a <em>real</em> browser, drives it like a
-          QA tester toward a plain-English goal, and returns a <span className="text-foreground">
-          PASS / FAIL verdict the agent can act on</span> — closing the build → test → fix loop
-          without a human.
+          Create a project, join its chat channel, and connect{" "}
+          <span className="text-foreground">Discord, Slack, and voice</span> — every
+          conversation drives the agents, and the agents verify their own work in a{" "}
+          <em>real</em> browser before reporting back to every connected platform.
         </p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <Link
-            href="/console"
+            href="/app"
             className="rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-background transition hover:opacity-90"
           >
-            Try the live console ▸
+            Create a project ▸
+          </Link>
+          <Link
+            href="/console"
+            className="rounded-xl border border-border bg-panel px-6 py-3 text-sm font-semibold transition hover:border-accent"
+          >
+            Verification console
           </Link>
           <a
             href="#how"
