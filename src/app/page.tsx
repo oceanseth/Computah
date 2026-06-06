@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PreviewWidget from "@/components/PreviewWidget";
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
@@ -245,6 +246,8 @@ export default function Landing() {
           <span>Built for the InsForge Agentic Dev Tools Hackathon · SF</span>
         </div>
       </footer>
+
+      <PreviewWidget />
     </div>
   );
 }
