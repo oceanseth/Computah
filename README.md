@@ -1,12 +1,28 @@
 # Computah 🖥️
 
-**The self-verifying computer for coding agents.**
+**Platform-agnostic collaborative coding agents.**
 
 🌐 **Live:** [computah.vercel.app](https://computah.vercel.app)
 
-Your agent ships a change. Computah opens it in a *real* browser, drives it like a QA
-tester toward a plain-English goal, watches for console errors, and returns a **PASS/FAIL
-verdict the agent can act on** — closing the build → test → fix loop without a human.
+Computah brings people together to drive coding agents — from whatever platform
+they already talk on. Create a project in the web app, join its chat channel, then
+connect **Discord** channels, **Slack** servers (and soon **Maskord**) as
+source/destination platforms: every message flows into one shared conversation
+that steers the agents, and the agents report back to every connected channel.
+
+The pieces:
+
+- **Web app** ([computah.vercel.app](https://computah.vercel.app)) — create a
+  project, join its chat channel, connect external platforms *(in progress —
+  currently the verification console)*
+- **Messaging bridge** — Composio-powered ingestion: Discord/Slack messages land
+  in a unified `platform_messages` inbox that drives the agents
+- **Voice app** (`voice-app/`, Electron) — always-listening transcription that
+  turns spoken conversation into agent-driving signal, the same way
+- **Verification engine** — agents check their own work: Computah opens the
+  change in a *real* browser, drives it like a QA tester toward a plain-English
+  goal, watches for console errors, and returns a **PASS/FAIL verdict the agent
+  can act on** — closing the build → test → fix loop without a human
 
 Built for the **InsForge Agentic Dev Tools Hackathon**. The entire backend runs on InsForge:
 
@@ -14,7 +30,7 @@ Built for the **InsForge Agentic Dev Tools Hackathon**. The entire backend runs 
 | ------------------ | -------------------------------------------------------- |
 | **AI**             | Reads a text snapshot of the page → drives + judges it   |
 | **Storage**        | Per-step screenshots (`computah-shots` bucket) for replay |
-| **Postgres**       | Verification sessions (`verifications` table)            |
+| **Postgres**       | Verification sessions (`verifications`), the cross-platform message inbox (`platform_messages`), and the voice app's `sessions` / `transcript_segments` / `memories` |
 
 ```
 Coding agent (Claude Code / Cursor / Devin)
@@ -145,5 +161,17 @@ src/app/api/sessions       GET  → list / fetch sessions
 src/app/page.tsx           Run console + recent sessions
 src/app/sessions/[id]      Session replay player
 mcp/server.ts              MCP tool: computah_verify
-scripts/schema.sql         InsForge table definition
+scripts/schema.sql         InsForge table definition (verifications)
+migrations/                InsForge migrations (platform_messages inbox)
+scripts/composio-discord-listen.mts
+                           Composio bridge: Discord channel → platform_messages
+voice-app/                 Electron voice app (submodule): speech → transcript → memories
 ```
+
+## Roadmap
+
+- [ ] Projects + chat channels in the web app (create a project, invite people, talk to the agents)
+- [ ] Discord/Slack channel linking from the UI (the Composio bridge already lands messages in `platform_messages`)
+- [ ] Outbound fan-out: agent + human messages broadcast to every connected platform
+- [ ] Maskord support when it lands on Composio
+- [ ] Fold the voice app into the same project/channel model
