@@ -32,7 +32,7 @@ export default function SignupPage() {
       setStep("verify"); // backend uses 6-digit code verification
     } else if (data?.accessToken) {
       await refresh();
-      router.push("/app");
+      router.push("/listen");
     }
   }
 
@@ -51,7 +51,7 @@ export default function SignupPage() {
     }
     // verifyEmail saves the session — user is signed in
     await refresh();
-    router.push("/app");
+    router.push("/listen");
   }
 
   async function resend() {

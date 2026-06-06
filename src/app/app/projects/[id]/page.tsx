@@ -63,6 +63,9 @@ export default function ProjectPage() {
   const [linkExternalId, setLinkExternalId] = useState("");
   const [listening, setListening] = useState(false);
   const [botToken, setBotToken] = useState("");
+  const [deepgramKey, setDeepgramKey] = useState("");
+  const [replicasKey, setReplicasKey] = useState("");
+  const [replicasEnv, setReplicasEnv] = useState("");
   const [hasSavedToken, setHasSavedToken] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -142,12 +145,34 @@ export default function ProjectPage() {
     void loadLinks(activeChannel.id);
   }, [activeChannel, loadLinks]);
 
-  // poll the feed
+  // realtime feed: every platform_messages insert publishes to hub:<channel-id>
+  // (slow poll kept as a reconnect fallback)
   useEffect(() => {
     if (!activeChannel) return;
+    const insforge = getInsforgeBrowser();
+    const channelName = `hub:${activeChannel.id}`;
+    let mounted = true;
+    const onNew = (payload: { meta?: { channel?: string } }) => {
+      if (payload.meta?.channel !== channelName) return;
+      void loadMessages(activeChannel, links);
+    };
+    void (async () => {
+      try {
+        await insforge.realtime.connect();
+        const res = await insforge.realtime.subscribe(channelName);
+        if (res.ok && mounted) insforge.realtime.on("new_message", onNew);
+      } catch {
+        /* poll fallback below still runs */
+      }
+    })();
     void loadMessages(activeChannel, links);
-    const t = setInterval(() => void loadMessages(activeChannel, links), 3000);
-    return () => clearInterval(t);
+    const t = setInterval(() => void loadMessages(activeChannel, links), 15000);
+    return () => {
+      mounted = false;
+      insforge.realtime.off("new_message", onNew);
+      insforge.realtime.unsubscribe(channelName);
+      clearInterval(t);
+    };
   }, [activeChannel, links, loadMessages]);
 
   useEffect(() => {
@@ -208,7 +233,13 @@ export default function ProjectPage() {
 
   async function saveSettings(e: React.FormEvent) {
     e.preventDefault();
-    if (!botToken.trim()) return;
+    // only write the fields that were filled in
+    const patch: Record<string, string> = {};
+    if (botToken.trim()) patch.discord_bot_token = botToken.trim();
+    if (deepgramKey.trim()) patch.deepgram_api_key = deepgramKey.trim();
+    if (replicasKey.trim()) patch.replicas_api_key = replicasKey.trim();
+    if (replicasEnv.trim()) patch.replicas_environment_id = replicasEnv.trim();
+    if (Object.keys(patch).length === 0) return;
     const db = getInsforgeBrowser().database;
     const { data: existing } = await db
       .from("project_settings")
@@ -218,18 +249,19 @@ export default function ProjectPage() {
       (existing as unknown[] | null)?.length
         ? db
             .from("project_settings")
-            .update({ discord_bot_token: botToken.trim(), updated_at: new Date().toISOString() })
+            .update({ ...patch, updated_at: new Date().toISOString() })
             .eq("project_id", projectId)
-        : db
-            .from("project_settings")
-            .insert([{ project_id: projectId, discord_bot_token: botToken.trim() }]);
+        : db.from("project_settings").insert([{ project_id: projectId, ...patch }]);
     const { error } = await op;
     if (error) {
       setSettingsMsg(error.message || "save failed");
     } else {
       setSettingsMsg("saved ✓");
-      setHasSavedToken(true);
+      if (patch.discord_bot_token) setHasSavedToken(true);
       setBotToken("");
+      setDeepgramKey("");
+      setReplicasKey("");
+      setReplicasEnv("");
     }
   }
 
@@ -365,6 +397,29 @@ export default function ProjectPage() {
                   placeholder={hasSavedToken ? "••••••• replace token" : "bot token"}
                   value={botToken}
                   onChange={(e) => setBotToken(e.target.value)}
+                  className="rounded-lg border border-border bg-panel px-2 py-1.5 text-xs outline-none focus:border-accent"
+                />
+                <label className="mt-1 text-xs text-muted">Deepgram API key</label>
+                <input
+                  type="password"
+                  placeholder="deepgram key (voice)"
+                  value={deepgramKey}
+                  onChange={(e) => setDeepgramKey(e.target.value)}
+                  className="rounded-lg border border-border bg-panel px-2 py-1.5 text-xs outline-none focus:border-accent"
+                />
+                <label className="mt-1 text-xs text-muted">Replicas API key</label>
+                <input
+                  type="password"
+                  placeholder="replicas key (agents)"
+                  value={replicasKey}
+                  onChange={(e) => setReplicasKey(e.target.value)}
+                  className="rounded-lg border border-border bg-panel px-2 py-1.5 text-xs outline-none focus:border-accent"
+                />
+                <label className="mt-1 text-xs text-muted">Replicas environment id</label>
+                <input
+                  placeholder="environment uuid"
+                  value={replicasEnv}
+                  onChange={(e) => setReplicasEnv(e.target.value)}
                   className="rounded-lg border border-border bg-panel px-2 py-1.5 text-xs outline-none focus:border-accent"
                 />
                 <button

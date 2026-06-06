@@ -38,7 +38,7 @@ export default function Landing() {
             Sign in
           </Link>
           <Link
-            href="/app"
+            href="/listen"
             className="rounded-lg bg-accent px-4 py-1.5 font-semibold text-background transition hover:opacity-90"
           >
             Open app ▸
@@ -63,7 +63,7 @@ export default function Landing() {
         </p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <Link
-            href="/app"
+            href="/listen"
             className="rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-background transition hover:opacity-90"
           >
             Create a project ▸
@@ -173,7 +173,7 @@ export default function Landing() {
           Bring your team — and your channels — and drive the agents together.
         </p>
         <Link
-          href="/app"
+          href="/listen"
           className="mt-7 inline-block rounded-xl bg-accent px-7 py-3 text-sm font-semibold text-background transition hover:opacity-90"
         >
           Create a project ▸

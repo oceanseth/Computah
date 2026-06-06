@@ -32,13 +32,13 @@ export default function LoginPage() {
       return;
     }
     await refresh();
-    router.push("/app");
+    router.push("/listen");
   }
 
   async function handleOAuth(provider: (typeof OAUTH_PROVIDERS)[number]) {
     const insforge = getInsforgeBrowser();
     await insforge.auth.signInWithOAuth(provider, {
-      redirectTo: `${window.location.origin}/app`,
+      redirectTo: `${window.location.origin}/listen`,
     });
   }
 
