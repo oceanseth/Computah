@@ -96,3 +96,64 @@ export function DiscordIcon({ className, size = 20 }: IconProps) {
     </svg>
   );
 }
+
+export function MailIcon({ className, size = 20 }: IconProps) {
+  return (
+    <svg {...baseProps(size, className)}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 7l9 7 9-7" />
+    </svg>
+  );
+}
+
+export function SlackIcon({ className, size = 20 }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M5 14.5a2 2 0 1 1 0-4h2v4H5zm3 0a2 2 0 1 1 4 0v5a2 2 0 1 1-4 0v-5z" />
+      <path d="M9.5 5a2 2 0 1 1 4 0v2h-4V5zm0 3a2 2 0 1 1 0 4h-5a2 2 0 1 1 0-4h5z" />
+      <path d="M19 9.5a2 2 0 1 1 0 4h-2v-4h2zm-3 0a2 2 0 1 1-4 0v-5a2 2 0 1 1 4 0v5z" />
+      <path d="M14.5 19a2 2 0 1 1-4 0v-2h4v2zm0-3a2 2 0 1 1 0-4h5a2 2 0 1 1 0 4h-5z" />
+    </svg>
+  );
+}
+
+export function LinearIcon({ className, size = 20 }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M3.5 13.5A8.5 8.5 0 0 1 12 5a8.5 8.5 0 0 1 8.5 8.5L13 21a8.5 8.5 0 0 1-9.5-7.5zM4 11a9 9 0 0 1 9-7l-9 9V11zm0 4l5 5a9 9 0 0 1-5-5z" />
+    </svg>
+  );
+}
+
+export function NotionIcon({ className, size = 20 }: IconProps) {
+  return (
+    <svg {...baseProps(size, className)}>
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M9 7l6 10" />
+      <path d="M9 7v10" />
+      <path d="M15 7v10" />
+    </svg>
+  );
+}
+
+export function AttioIcon({ className, size = 20 }: IconProps) {
+  return (
+    <svg {...baseProps(size, className)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 14l2-6h4l2 6" />
+      <path d="M9 12h6" />
+    </svg>
+  );
+}

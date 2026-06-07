@@ -3,15 +3,54 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardLabel } from "../_components/Card";
 import PageHeader from "../_components/PageHeader";
-import { DiscordIcon, PlugIcon } from "../_components/Icons";
+import {
+  AttioIcon,
+  DiscordIcon,
+  LinearIcon,
+  MailIcon,
+  NotionIcon,
+  PlugIcon,
+  SlackIcon,
+} from "../_components/Icons";
 import { getInsforgeBrowser } from "@/lib/insforge-client";
 import { useProject } from "@/lib/use-project";
 
 /**
- * Connections — channel sources (Discord/Slack/Maskord links on the project's
- * hub channel) and the project's integration settings (bot token, Deepgram,
- * Replicas). Settings are owner-only via RLS.
+ * Connections — three sections:
+ *   1. Connected Platforms (Composio): Gmail, Linear, Notion, Attio OAuth +
+ *      "Link channel" jump for Discord/Slack channel links.
+ *   2. Channel Sources: Discord/Slack/Maskord channel_link rows the project
+ *      currently mirrors. Add / disconnect inline.
+ *   3. Project Settings (owner-only): bot token, Deepgram, Replicas, Devin,
+ *      lim.run, verify URL.
  */
+
+type IntegrationRow = {
+  id: string;
+  label: string;
+  description: string;
+  channelLike: boolean;
+  commandKind: string | null;
+  composioConfigured: boolean | null; // null = not Composio-managed (e.g. Discord)
+};
+
+const ICONS: Record<string, (props: { size?: number }) => React.ReactNode> = {
+  discord: (p) => <DiscordIcon size={p.size} />,
+  slack: (p) => <SlackIcon size={p.size} />,
+  gmail: (p) => <MailIcon size={p.size} />,
+  linear: (p) => <LinearIcon size={p.size} />,
+  notion: (p) => <NotionIcon size={p.size} />,
+  attio: (p) => <AttioIcon size={p.size} />,
+};
+
+const BRAND_BG: Record<string, string> = {
+  discord: "text-[#5865F2]",
+  slack: "text-[#4A154B]",
+  gmail: "text-[#EA4335]",
+  linear: "text-[#5E6AD2]",
+  notion: "text-[#191919]",
+  attio: "text-[#1F1F1F]",
+};
 
 const inputCls =
   "rounded-md border border-[var(--shell-border)] bg-white px-3.5 py-2.5 text-[13px] text-[var(--shell-text)] outline-none focus:border-[var(--shell-coral)]";
@@ -20,6 +59,11 @@ const labelCls =
 
 export default function ConnectionsPage() {
   const { user, project, hub, links, ready, refresh } = useProject();
+  const [composioReady, setComposioReady] = useState<boolean | null>(null);
+  const [rows, setRows] = useState<IntegrationRow[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
   const [platform, setPlatform] = useState("discord");
   const [externalId, setExternalId] = useState("");
   const [botToken, setBotToken] = useState("");
@@ -33,6 +77,19 @@ export default function ConnectionsPage() {
   const [msg, setMsg] = useState<string | null>(null);
 
   const isOwner = Boolean(user && project && project.owner_id === user.id);
+
+  useEffect(() => {
+    void (async () => {
+      const res = await fetch("/api/integrations");
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        composioApiKeyConfigured: boolean;
+        integrations: IntegrationRow[];
+      };
+      setComposioReady(data.composioApiKeyConfigured);
+      setRows(data.integrations);
+    })();
+  }, []);
 
   const loadSettings = useCallback(async () => {
     if (!project) return;
@@ -57,7 +114,43 @@ export default function ConnectionsPage() {
     void loadSettings();
   }, [loadSettings]);
 
-  async function connect(e: React.FormEvent) {
+  async function composioConnect(row: IntegrationRow) {
+    if (!user) {
+      setNotice("Sign in first.");
+      return;
+    }
+    setBusy(row.id);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/connections/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ integrationId: row.id, userId: user.id }),
+      });
+      const data = (await res.json()) as {
+        redirectUrl?: string | null;
+        error?: string;
+      };
+      if (!res.ok) {
+        setNotice(data.error || "Connection failed");
+        return;
+      }
+      if (data.redirectUrl) {
+        window.open(data.redirectUrl, "_blank", "noopener,noreferrer");
+        setNotice(
+          `Opened ${row.label} OAuth in a new tab — complete it there, then come back.`
+        );
+      } else {
+        setNotice(`${row.label} is connecting…`);
+      }
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Connection failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function connectChannel(e: React.FormEvent) {
     e.preventDefault();
     if (!hub || !user || !externalId.trim()) return;
     const { error } = await getInsforgeBrowser()
@@ -130,14 +223,127 @@ export default function ConnectionsPage() {
       <PageHeader
         breadcrumb={`Computah / ${project?.name ?? "…"} / Connections`}
         title="Connections"
-        subtitle="Connect Discord, Slack, and more so messages drive the agents."
+        subtitle="Connect Discord, Slack, Gmail, Linear, Notion, and Attio so commands turn into action."
         icon={<PlugIcon size={18} />}
       />
 
       {msg && <p className="mt-4 text-[13px] text-[var(--shell-coral)]">{msg}</p>}
 
-      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* channel sources */}
+      {/* 1) Composio workspace integrations + Discord jump */}
+      <div className="mt-8 space-y-4">
+        <Card>
+          <div className="flex items-center justify-between">
+            <CardLabel>/ Connected Platforms</CardLabel>
+            {composioReady !== null && (
+              <span
+                className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                  composioReady
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-amber-100 text-amber-700"
+                }`}
+              >
+                Composio API key {composioReady ? "ready" : "missing"}
+              </span>
+            )}
+          </div>
+
+          {notice && (
+            <p className="mt-4 rounded-md border border-[var(--shell-border)] bg-[var(--shell-bg)] px-3 py-2 text-[12px] text-[var(--shell-text-muted)]">
+              {notice}
+            </p>
+          )}
+
+          <div className="mt-5 space-y-2">
+            {rows.map((row) => {
+              const Icon = ICONS[row.id];
+              const canConnect = row.composioConfigured === true || row.channelLike;
+              const composioOnly = !row.channelLike;
+              return (
+                <div
+                  key={row.id}
+                  className="flex items-center justify-between rounded-md border border-[var(--shell-border)] bg-white px-4 py-3.5"
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`flex h-9 w-9 items-center justify-center rounded-md bg-[#f1efeb] ${
+                        BRAND_BG[row.id] ?? ""
+                      }`}
+                    >
+                      {Icon ? Icon({ size: 18 }) : <PlugIcon size={18} />}
+                    </span>
+                    <div>
+                      <div className="text-[14px] font-medium text-[var(--shell-text)]">
+                        {row.label}
+                      </div>
+                      <div className="text-[12px] text-[var(--shell-text-muted)]">
+                        {row.description}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {row.composioConfigured === false && (
+                      <span className="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-amber-700">
+                        Needs auth config
+                      </span>
+                    )}
+                    {row.composioConfigured === true && (
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-emerald-700">
+                        Auth config ready
+                      </span>
+                    )}
+                    {row.channelLike && (
+                      <span className="rounded-full border border-[var(--shell-border)] px-3 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--shell-text-muted)]">
+                        Channel link
+                      </span>
+                    )}
+                    {composioOnly ? (
+                      <button
+                        type="button"
+                        disabled={!canConnect || busy === row.id}
+                        onClick={() => void composioConnect(row)}
+                        title={
+                          canConnect
+                            ? `Connect ${row.label} via Composio`
+                            : `Set the auth config env var to enable.`
+                        }
+                        className={`inline-flex items-center rounded-full border-[1.5px] px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition ${
+                          canConnect
+                            ? "border-[var(--shell-text)] text-[var(--shell-text)] hover:bg-[var(--shell-text)] hover:text-white"
+                            : "border-[var(--shell-border)] text-[var(--shell-text-soft)] cursor-not-allowed"
+                        } disabled:opacity-60`}
+                      >
+                        {busy === row.id ? "Opening…" : "Connect"}
+                      </button>
+                    ) : (
+                      <a
+                        href="#channel-sources"
+                        className="inline-flex items-center rounded-full border-[1.5px] border-[var(--shell-text)] px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--shell-text)] transition hover:bg-[var(--shell-text)] hover:text-white"
+                      >
+                        Link channel
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {rows.length === 0 && (
+              <div className="rounded-md border border-dashed border-[var(--shell-border)] bg-white px-4 py-6 text-center text-[12px] text-[var(--shell-text-muted)]">
+                Loading integrations…
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 text-[12px] leading-relaxed text-[var(--shell-text-muted)]">
+            Workspace integrations connect via Composio OAuth — clicking
+            Connect opens the provider&apos;s consent screen in a new tab. Discord
+            &amp; Slack channel links live just below.
+          </div>
+        </Card>
+      </div>
+
+      {/* 2 + 3) Channel sources + project settings */}
+      <div id="channel-sources" className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardLabel>/ Channel Sources</CardLabel>
           <div className="mt-5 flex flex-col gap-3">
@@ -154,7 +360,11 @@ export default function ConnectionsPage() {
               >
                 <div className="flex items-center gap-3">
                   <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#f1efeb] text-[#5865F2]">
-                    <DiscordIcon size={18} />
+                    {l.platform === "slack" ? (
+                      <SlackIcon size={18} />
+                    ) : (
+                      <DiscordIcon size={18} />
+                    )}
                   </span>
                   <div>
                     <div className="text-[14px] font-medium capitalize text-[var(--shell-text)]">
@@ -175,7 +385,7 @@ export default function ConnectionsPage() {
             ))}
           </div>
 
-          <form onSubmit={connect} className="mt-5 flex flex-col gap-2.5">
+          <form onSubmit={connectChannel} className="mt-5 flex flex-col gap-2.5">
             <div className={labelCls}>Add a source</div>
             <div className="flex gap-2">
               <select
@@ -208,7 +418,6 @@ export default function ConnectionsPage() {
           </form>
         </Card>
 
-        {/* project settings */}
         <Card>
           <div className="flex items-center justify-between">
             <CardLabel>/ Project Settings</CardLabel>

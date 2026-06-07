@@ -11,12 +11,14 @@ import {
 } from "@/lib/replicas";
 import { createDevinSession, envApiKey as devinEnvApiKey } from "@/lib/devin";
 import { runVerification } from "@/lib/verify";
+import { executeProposal, Payload } from "@/lib/composio-actions";
 
 /**
  * Spawn + track replicants. The browser writes 'proposed'/'rejected' rows
  * directly (RLS); this route handles what needs server secrets:
- *   POST { id, userId }      → spawn the proposed replicant via the Replicas API
- *   GET  ?projectId&userId   → list rows, refreshing live statuses
+ *   POST { id, userId }                → spawn / send the proposed replicant
+ *   POST { id, userId, action:"nudge" } → send a follow-up message to a live agent
+ *   GET  ?projectId&userId             → list rows, refreshing live statuses
  *
  * Hackathon auth note: userId comes from the client and is checked against
  * project membership server-side. Move to verified InsForge JWTs post-demo.
@@ -74,11 +76,14 @@ export async function POST(req: NextRequest) {
     message: string;
     coding_agent: string;
     status: string;
+    kind?: string | null;
+    payload?: Payload | null;
   }>)?.[0];
   if (!replicant) return NextResponse.json({ error: "not found" }, { status: 404 });
   if (!(await membership(userId, replicant.project_id))) {
     return NextResponse.json({ error: "not a project member" }, { status: 403 });
   }
+
   // ---- nudge: follow-up message to a live replica (e.g. after fixing a
   // secret it was missing) — wakes it and flips the row back to running ----
   if (action === "nudge") {
@@ -110,8 +115,36 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (replicant.status !== "proposed") {
+  // Allow retry from a failed state — anything else (running, completed,
+  // spawning, rejected, verified) is final.
+  if (replicant.status !== "proposed" && replicant.status !== "failed") {
     return NextResponse.json({ error: `already ${replicant.status}` }, { status: 409 });
+  }
+
+  const kind = replicant.kind ?? "agent";
+
+  // Non-agent kinds (email/linear/slack/notion/attio) go through Composio.
+  // The connected account must already exist for this user — wire it on
+  // /connections first.
+  if (kind !== "agent") {
+    try {
+      const result = await executeProposal(userId, kind, replicant.payload ?? {});
+      const status = result.ok ? "completed" : "failed";
+      await insforge.database
+        .from("replicants")
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (!result.ok) {
+        return NextResponse.json({ error: result.message }, { status: 502 });
+      }
+      return NextResponse.json({ ok: true, message: result.message });
+    } catch (err) {
+      await insforge.database
+        .from("replicants")
+        .update({ status: "failed", updated_at: new Date().toISOString() })
+        .eq("id", id);
+      return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    }
   }
 
   // Devin agent path (devin.ai) — sibling to the Replicas path below.
