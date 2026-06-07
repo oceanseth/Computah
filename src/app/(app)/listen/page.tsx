@@ -29,7 +29,7 @@ type TranscriptLine = { at: string; text: string };
 // Fast local gate (from desktop commands.js) so we don't call the LLM on
 // every segment.
 const TRIGGER =
-  /\b(replica|replicas|replicant)\b|\b(spin up|spin off|fire up|kick off|kick (it )?off|start|launch|stand up)\b[^.?!]{0,40}\bagent\b/i;
+  /\b(replica|replicas|replicant|devin)\b|\b(spin up|spin off|fire up|kick off|kick (it )?off|start|launch|stand up|send|have)\b[^.?!]{0,40}\b(agent|devin)\b/i;
 
 type SpeechRecognitionLike = {
   continuous: boolean;
@@ -129,7 +129,12 @@ export default function ListenPage() {
             project_id: project.id,
             name: det.name || det.message.slice(0, 40),
             message: det.message,
-            coding_agent: det.codingAgent === "codex" ? "codex" : "claude",
+            coding_agent:
+              det.codingAgent === "devin"
+                ? "devin"
+                : det.codingAgent === "codex"
+                  ? "codex"
+                  : "claude",
             status: "proposed",
             created_by: user.id,
           },

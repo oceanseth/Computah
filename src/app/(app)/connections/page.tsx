@@ -26,6 +26,7 @@ export default function ConnectionsPage() {
   const [deepgramKey, setDeepgramKey] = useState("");
   const [replicasKey, setReplicasKey] = useState("");
   const [replicasEnv, setReplicasEnv] = useState("");
+  const [devinKey, setDevinKey] = useState("");
   const [limKey, setLimKey] = useState("");
   const [verifyUrl, setVerifyUrl] = useState("");
   const [saved, setSaved] = useState<Record<string, boolean>>({});
@@ -46,6 +47,7 @@ export default function ConnectionsPage() {
       deepgram: Boolean(row?.deepgram_api_key),
       replicasKey: Boolean(row?.replicas_api_key),
       replicasEnv: Boolean(row?.replicas_environment_id),
+      devin: Boolean(row?.devin_api_key),
       lim: Boolean(row?.lim_api_key),
       verifyUrl: Boolean(row?.verify_url),
     });
@@ -86,6 +88,7 @@ export default function ConnectionsPage() {
     if (deepgramKey.trim()) patch.deepgram_api_key = deepgramKey.trim();
     if (replicasKey.trim()) patch.replicas_api_key = replicasKey.trim();
     if (replicasEnv.trim()) patch.replicas_environment_id = replicasEnv.trim();
+    if (devinKey.trim()) patch.devin_api_key = devinKey.trim();
     if (limKey.trim()) patch.lim_api_key = limKey.trim();
     if (verifyUrl.trim()) patch.verify_url = verifyUrl.trim();
     if (Object.keys(patch).length === 0) return;
@@ -107,6 +110,7 @@ export default function ConnectionsPage() {
       setDeepgramKey("");
       setReplicasKey("");
       setReplicasEnv("");
+      setDevinKey("");
       setLimKey("");
       setVerifyUrl("");
       void loadSettings();
@@ -249,6 +253,16 @@ export default function ConnectionsPage() {
                 value={replicasEnv}
                 onChange={(e) => setReplicasEnv(e.target.value)}
                 placeholder={saved.replicasEnv ? "set — paste to replace" : "environment uuid"}
+                className={inputCls}
+              />
+              <label className={labelCls}>
+                Devin API key {saved.devin && <span className="text-[var(--shell-coral)]">· set</span>}
+              </label>
+              <input
+                type="password"
+                value={devinKey}
+                onChange={(e) => setDevinKey(e.target.value)}
+                placeholder={saved.devin ? "••••••• replace" : "say “send Devin to…” to use it"}
                 className={inputCls}
               />
               <label className={labelCls}>
