@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 function Pill({ children }: { children: React.ReactNode }) {
@@ -23,10 +24,17 @@ export default function Landing() {
 
       {/* nav */}
       <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
-        <div className="mono text-lg font-semibold">
-          <span className="text-accent">computah</span>
-          <span className="text-muted">://</span>
-        </div>
+        <Link href="/" className="flex items-center gap-2" aria-label="Computah home">
+          <Image
+            src="/logo.svg"
+            alt=""
+            width={32}
+            height={32}
+            priority
+            className="h-8 w-8"
+          />
+          <span className="mono text-lg font-semibold text-foreground">computah</span>
+        </Link>
         <div className="flex items-center gap-6 text-sm text-muted">
           <a href="#how" className="hidden hover:text-foreground sm:block">
             How it works
