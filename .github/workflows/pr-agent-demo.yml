@@ -53,8 +53,8 @@ jobs:
             --label pr=${{ github.event.pull_request.number || 'manual' }} \
             --json > instance.json
           cat instance.json
-          INSTANCE_ID=$(jq -r '.id // .instanceId // .name' instance.json)
-          STREAM_URL=$(jq -r '.signedStreamUrl // .streamUrl // .endpoints.signedStreamUrl // empty' instance.json)
+          INSTANCE_ID=$(jq -r '.metadata.id // .id // .instanceId // .name' instance.json)
+          STREAM_URL=$(jq -r '.status.signedStreamUrl // .signedStreamUrl // .streamUrl // empty' instance.json)
           echo "instance_id=$INSTANCE_ID" >> "$GITHUB_OUTPUT"
           echo "stream_url=$STREAM_URL"   >> "$GITHUB_OUTPUT"
 
