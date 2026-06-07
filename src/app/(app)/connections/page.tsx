@@ -19,7 +19,7 @@ const labelCls =
   "text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--shell-text-muted)]";
 
 export default function ConnectionsPage() {
-  const { user, project, hub, links, ready, refresh } = useProject();
+  const { user, project, hub, links, ready, error: backendError, refresh } = useProject();
   const [platform, setPlatform] = useState("discord");
   const [externalId, setExternalId] = useState("");
   const [botToken, setBotToken] = useState("");
@@ -134,7 +134,9 @@ export default function ConnectionsPage() {
         icon={<PlugIcon size={18} />}
       />
 
-      {msg && <p className="mt-4 text-[13px] text-[var(--shell-coral)]">{msg}</p>}
+      {(msg || backendError) && (
+        <p className="mt-4 text-[13px] text-[var(--shell-coral)]">{msg || backendError}</p>
+      )}
 
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* channel sources */}

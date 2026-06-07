@@ -56,7 +56,7 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default function ListenPage() {
-  const { user, loading, project, hub, links, refresh } = useProject();
+  const { user, loading, project, hub, links, error: backendError, refresh } = useProject();
   const [discordId, setDiscordId] = useState("");
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
@@ -322,8 +322,8 @@ export default function ListenPage() {
         </form>
       </div>
 
-      {notice && (
-        <p className="mt-3 text-[13px] text-[var(--shell-coral)]">{notice}</p>
+      {(notice || backendError) && (
+        <p className="mt-3 text-[13px] text-[var(--shell-coral)]">{notice || backendError}</p>
       )}
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">

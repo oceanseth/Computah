@@ -48,7 +48,7 @@ const PLATFORM_BADGE: Record<string, string> = {
 };
 
 export default function IteratePage() {
-  const { user, project, hub, links, ready } = useProject();
+  const { user, project, hub, links, ready, error: backendError } = useProject();
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [listening, setListening] = useState(false);
@@ -191,6 +191,10 @@ export default function IteratePage() {
           ) : undefined
         }
       />
+
+      {backendError && (
+        <p className="mt-4 text-[13px] text-[var(--shell-coral)]">{backendError}</p>
+      )}
 
       <Card className="mt-6 flex min-h-0 flex-1 flex-col">
         <div className="flex items-center justify-between">
