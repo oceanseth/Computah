@@ -29,7 +29,7 @@ export default function Sidebar() {
       <nav className="flex flex-1 flex-col gap-0.5 px-3">
         <SidebarNavItem href="/listen" label="Listen" icon={<MicIcon size={17} />} />
         <SidebarNavItem
-          href="/app"
+          href="/iterate"
           label="Iterate"
           icon={<ChatBubbleIcon size={17} />}
         />

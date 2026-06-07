@@ -1,13 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Card, CardLabel } from "../_components/Card";
 import EmptyState from "../_components/EmptyState";
 import PageHeader from "../_components/PageHeader";
 import { HeadphonesIcon, InboxIcon, MicIcon, PlugIcon } from "../_components/Icons";
 import { getInsforgeBrowser } from "@/lib/insforge-client";
-import { useAuth } from "@/lib/auth-context";
+import { useProject } from "@/lib/use-project";
 
 /**
  * Listen — the desktop voice-app's loop, on the web:
@@ -16,9 +15,6 @@ import { useAuth } from "@/lib/auth-context";
  * replicant cards → approve to launch a cloud coding agent.
  */
 
-type Project = { id: string; name: string; owner_id: string };
-type Channel = { id: string; project_id: string; name: string };
-type Link = { id: string; platform: string; external_channel_id: string };
 type Replicant = {
   id: string;
   name: string;
@@ -60,11 +56,7 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default function ListenPage() {
-  const router = useRouter();
-  const { user, loading } = useAuth();
-  const [project, setProject] = useState<Project | null>(null);
-  const [hub, setHub] = useState<Channel | null>(null);
-  const [links, setLinks] = useState<Link[]>([]);
+  const { user, loading, project, hub, links, refresh } = useProject();
   const [discordId, setDiscordId] = useState("");
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
@@ -76,46 +68,6 @@ export default function ListenPage() {
   const keepAliveRef = useRef(false);
   const windowRef = useRef<string[]>([]); // rolling transcript window
   const detectBusyRef = useRef(false);
-
-  // ---- bootstrap: first project (or create "Default Workspace") + hub ----
-  const bootstrap = useCallback(async () => {
-    if (!user) return;
-    const db = getInsforgeBrowser().database;
-    const { data: projects } = await db
-      .from("projects")
-      .select()
-      .order("created_at", { ascending: true })
-      .limit(1);
-    let proj = (projects as Project[] | null)?.[0] ?? null;
-    if (!proj) {
-      const { data: created } = await db
-        .from("projects")
-        .insert([{ name: "Default Workspace", owner_id: user.id }])
-        .select();
-      proj = (created as Project[] | null)?.[0] ?? null;
-      if (!proj) return;
-      await db
-        .from("project_members")
-        .insert([{ project_id: proj.id, user_id: user.id, role: "owner" }]);
-      await db.from("channels").insert([{ project_id: proj.id, name: "general" }]);
-    }
-    setProject(proj);
-    const { data: chans } = await db
-      .from("channels")
-      .select()
-      .eq("project_id", proj.id)
-      .order("created_at", { ascending: true })
-      .limit(1);
-    const channel = (chans as Channel[] | null)?.[0] ?? null;
-    setHub(channel);
-    if (channel) {
-      const { data: linkRows } = await db
-        .from("channel_links")
-        .select()
-        .eq("channel_id", channel.id);
-      setLinks((linkRows as Link[]) ?? []);
-    }
-  }, [user]);
 
   const loadReplicants = useCallback(async () => {
     if (!project || !user) return;
@@ -129,15 +81,6 @@ export default function ListenPage() {
       }
     } catch {}
   }, [project, user]);
-
-  useEffect(() => {
-    if (loading) return;
-    if (!user) {
-      router.push("/login");
-      return;
-    }
-    void bootstrap();
-  }, [loading, user, router, bootstrap]);
 
   useEffect(() => {
     if (!project) return;
@@ -288,7 +231,7 @@ export default function ListenPage() {
       },
     ]);
     setDiscordId("");
-    void bootstrap();
+    void refresh();
   }
 
   if (loading || !user) {
