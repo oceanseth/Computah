@@ -92,6 +92,23 @@ export async function createReplica(
   };
 }
 
+/** Idempotently set an env var on the environment (new replicant VMs inherit it). */
+export async function ensureEnvironmentVariable(
+  creds: ReplicaCredentials,
+  key: string,
+  value: string
+): Promise<void> {
+  try {
+    await api(creds.apiKey, `/v1/environments/${creds.environmentId}/variables`, {
+      method: "POST",
+      body: { key, value },
+    });
+  } catch (err) {
+    // unique(key, environment) — already set is fine
+    if (!/unique|exists|conflict|409/i.test((err as Error).message)) throw err;
+  }
+}
+
 export async function getReplica(creds: ReplicaCredentials, id: string): Promise<ReplicaState> {
   if (!id) throw new Error("replica id is required");
   const data = await api(creds.apiKey, `/v1/replica/${id}`);

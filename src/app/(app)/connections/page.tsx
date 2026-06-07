@@ -26,6 +26,8 @@ export default function ConnectionsPage() {
   const [deepgramKey, setDeepgramKey] = useState("");
   const [replicasKey, setReplicasKey] = useState("");
   const [replicasEnv, setReplicasEnv] = useState("");
+  const [limKey, setLimKey] = useState("");
+  const [verifyUrl, setVerifyUrl] = useState("");
   const [saved, setSaved] = useState<Record<string, boolean>>({});
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -44,6 +46,8 @@ export default function ConnectionsPage() {
       deepgram: Boolean(row?.deepgram_api_key),
       replicasKey: Boolean(row?.replicas_api_key),
       replicasEnv: Boolean(row?.replicas_environment_id),
+      lim: Boolean(row?.lim_api_key),
+      verifyUrl: Boolean(row?.verify_url),
     });
   }, [project]);
 
@@ -82,6 +86,8 @@ export default function ConnectionsPage() {
     if (deepgramKey.trim()) patch.deepgram_api_key = deepgramKey.trim();
     if (replicasKey.trim()) patch.replicas_api_key = replicasKey.trim();
     if (replicasEnv.trim()) patch.replicas_environment_id = replicasEnv.trim();
+    if (limKey.trim()) patch.lim_api_key = limKey.trim();
+    if (verifyUrl.trim()) patch.verify_url = verifyUrl.trim();
     if (Object.keys(patch).length === 0) return;
     const db = getInsforgeBrowser().database;
     const { data: existing } = await db
@@ -101,6 +107,8 @@ export default function ConnectionsPage() {
       setDeepgramKey("");
       setReplicasKey("");
       setReplicasEnv("");
+      setLimKey("");
+      setVerifyUrl("");
       void loadSettings();
     }
   }
@@ -241,6 +249,25 @@ export default function ConnectionsPage() {
                 value={replicasEnv}
                 onChange={(e) => setReplicasEnv(e.target.value)}
                 placeholder={saved.replicasEnv ? "set — paste to replace" : "environment uuid"}
+                className={inputCls}
+              />
+              <label className={labelCls}>
+                lim.run API key {saved.lim && <span className="text-[var(--shell-coral)]">· set</span>}
+              </label>
+              <input
+                type="password"
+                value={limKey}
+                onChange={(e) => setLimKey(e.target.value)}
+                placeholder={saved.lim ? "••••••• replace" : "so replicants can build mobile"}
+                className={inputCls}
+              />
+              <label className={labelCls}>
+                Verify URL {saved.verifyUrl && <span className="text-[var(--shell-coral)]">· set</span>}
+              </label>
+              <input
+                value={verifyUrl}
+                onChange={(e) => setVerifyUrl(e.target.value)}
+                placeholder="https://staging.yourapp.com — self-verified when a replicant finishes"
                 className={inputCls}
               />
               <button

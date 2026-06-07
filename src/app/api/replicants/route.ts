@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { getInsforge } from "@/lib/insforge";
-import { createReplica, getReplica, envCredentials, ReplicaCredentials } from "@/lib/replicas";
+import {
+  createReplica,
+  getReplica,
+  envCredentials,
+  ensureEnvironmentVariable,
+  ReplicaCredentials,
+} from "@/lib/replicas";
+import { runVerification } from "@/lib/verify";
 
 /**
  * Spawn + track replicants. The browser writes 'proposed'/'rejected' rows
@@ -70,6 +78,18 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // sync per-project secrets the agent may need (e.g. lim.run mobile builds)
+    const { data: srows } = await insforge.database
+      .from("project_settings")
+      .select()
+      .eq("project_id", replicant.project_id);
+    const limKey =
+      (srows as Array<{ lim_api_key?: string | null }>)?.[0]?.lim_api_key ||
+      process.env.LIM_API_KEY;
+    if (limKey) {
+      await ensureEnvironmentVariable(creds, "LIM_API_KEY", limKey).catch(() => {});
+    }
+
     const replica = await createReplica(creds, {
       message: replicant.message,
       name: replicant.name,
@@ -95,6 +115,77 @@ export async function POST(req: NextRequest) {
 }
 
 const LIVE_STATUSES = new Set(["spawning", "running", "pending", "starting", "active"]);
+const DONE_STATUSES = new Set(["completed", "finished", "succeeded", "stopped", "done"]);
+
+/** Post as Computah into the project's hub channel — the DB trigger pushes it
+ *  to the web chat and the replicator relays it to every connected platform. */
+async function announce(projectId: string, content: string) {
+  const insforge = getInsforge();
+  const { data: chans } = await insforge.database
+    .from("channels")
+    .select()
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: true })
+    .limit(1);
+  const hub = (chans as Array<{ id: string }>)?.[0];
+  if (!hub) return;
+  await insforge.database.from("platform_messages").insert([
+    {
+      platform: "web",
+      channel_id: hub.id,
+      external_id: crypto.randomUUID(),
+      author_name: "Computah",
+      content,
+      sent_at: new Date().toISOString(),
+    },
+  ]);
+}
+
+/** Replicant finished → tell every channel, then self-verify if the project
+ *  has a verify_url, and report the verdict back the same way. */
+async function onReplicantDone(row: { id: string; project_id: string; name: string; message: string }) {
+  const insforge = getInsforge();
+  await announce(
+    row.project_id,
+    `🤖 Replicant **${row.name}** finished building. Check the repo for its PR.`
+  );
+
+  const { data: settings } = await insforge.database
+    .from("project_settings")
+    .select()
+    .eq("project_id", row.project_id);
+  const verifyUrl = (settings as Array<{ verify_url?: string | null }>)?.[0]?.verify_url;
+  if (!verifyUrl) return;
+
+  await announce(row.project_id, `🔍 Verifying in a real browser: ${verifyUrl} …`);
+  // after(): runs post-response so the GET poll isn't blocked by Playwright
+  after(async () => {
+    try {
+      const record = await runVerification({
+        url: verifyUrl,
+        goal: row.message,
+        maxSteps: 8,
+      });
+      const verdict = record.passed ? "✅ PASS" : "❌ FAIL";
+      await announce(
+        row.project_id,
+        `${verdict} — ${record.reason || "no reason given"} (replicant: ${row.name})`
+      );
+      await insforge.database
+        .from("replicants")
+        .update({
+          status: record.passed ? "verified" : "verify_failed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", row.id);
+    } catch (err) {
+      await announce(
+        row.project_id,
+        `⚠️ Verification errored for ${row.name}: ${(err as Error).message}`
+      );
+    }
+  });
+}
 
 export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
@@ -130,11 +221,22 @@ export async function GET(req: NextRequest) {
       try {
         const live = await getReplica(creds, row.replica_id);
         if (live.status && live.status !== row.status) {
+          const wasLive = !DONE_STATUSES.has(row.status);
           row.status = live.status;
           await insforge.database
             .from("replicants")
             .update({ status: live.status, updated_at: new Date().toISOString() })
             .eq("id", row.id);
+          // transition into a done state → announce + self-verify
+          if (wasLive && DONE_STATUSES.has(live.status)) {
+            const full = row as unknown as {
+              id: string;
+              project_id: string;
+              name: string;
+              message: string;
+            };
+            void onReplicantDone(full);
+          }
         }
       } catch {
         /* leave stale */
