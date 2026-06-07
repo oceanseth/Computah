@@ -8,6 +8,7 @@ import {
   ensureEnvironmentVariable,
   ReplicaCredentials,
 } from "@/lib/replicas";
+import { createDevinSession, envApiKey as devinEnvApiKey } from "@/lib/devin";
 import { runVerification } from "@/lib/verify";
 
 /**
@@ -44,6 +45,16 @@ async function credsForProject(projectId: string): Promise<ReplicaCredentials | 
   return { apiKey, environmentId };
 }
 
+async function devinKeyForProject(projectId: string): Promise<string | null> {
+  const insforge = getInsforge();
+  const { data } = await insforge.database
+    .from("project_settings")
+    .select()
+    .eq("project_id", projectId);
+  const row = (data as Array<{ devin_api_key?: string }>)?.[0];
+  return row?.devin_api_key || devinEnvApiKey() || null;
+}
+
 export async function POST(req: NextRequest) {
   const { id, userId } = (await req.json()) as { id?: string; userId?: string };
   if (!id || !userId) return NextResponse.json({ error: "id and userId required" }, { status: 400 });
@@ -64,6 +75,42 @@ export async function POST(req: NextRequest) {
   }
   if (replicant.status !== "proposed") {
     return NextResponse.json({ error: `already ${replicant.status}` }, { status: 409 });
+  }
+
+  // Devin agent path (devin.ai) — sibling to the Replicas path below.
+  if (replicant.coding_agent === "devin") {
+    const devinKey = await devinKeyForProject(replicant.project_id);
+    if (!devinKey) {
+      return NextResponse.json(
+        {
+          error:
+            "Devin not configured — set the Devin API key in project settings (or DEVIN_API_KEY env).",
+        },
+        { status: 501 }
+      );
+    }
+    try {
+      const session = await createDevinSession(devinKey, {
+        message: replicant.message,
+        name: replicant.name,
+      });
+      await insforge.database
+        .from("replicants")
+        .update({
+          status: session.status || "running",
+          replica_id: session.id,
+          url: session.url,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+      return NextResponse.json({ ok: true, session });
+    } catch (err) {
+      await insforge.database
+        .from("replicants")
+        .update({ status: "failed", updated_at: new Date().toISOString() })
+        .eq("id", id);
+      return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    }
   }
 
   const creds = await credsForProject(replicant.project_id);
@@ -208,14 +255,17 @@ export async function GET(req: NextRequest) {
     id: string;
     status: string;
     replica_id: string | null;
+    coding_agent: string;
     updated_at: string;
   }>) ?? [];
 
-  // refresh live statuses from the Replicas API (at most every 10s per row)
+  // refresh live statuses from the Replicas API (at most every 10s per row).
+  // Devin sessions are watched on devin.ai, so we skip them here.
   const creds = await credsForProject(projectId);
   if (creds) {
     const stale = Date.now() - 10_000;
     for (const row of rows) {
+      if (row.coding_agent === "devin") continue;
       if (!row.replica_id || !LIVE_STATUSES.has(row.status)) continue;
       if (new Date(row.updated_at).getTime() > stale) continue;
       try {
