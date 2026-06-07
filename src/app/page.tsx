@@ -185,7 +185,7 @@ export default function Landing() {
           <span>
             <span className="text-accent">computah</span>:// platform-agnostic collaborative coding agents
           </span>
-          <span>Built for the InsForge Agentic Dev Tools Hackathon · SF</span>
+          <span>Built for the InsForge Agentic Dev Tools Hackathon · SF · Team Stackers 🚀</span>
         </div>
       </footer>
     </div>

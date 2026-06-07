@@ -29,7 +29,12 @@ async function shoot(page, baseUrl, route, file) {
 }
 
 const browser = await chromium.launch({ headless: true });
-const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+// If a Vercel protection-bypass secret is provided, send it so we can load
+// password-protected preview deploys. Harmless on the unprotected prod URL.
+const extraHTTPHeaders = process.env.VERCEL_BYPASS
+  ? { "x-vercel-protection-bypass": process.env.VERCEL_BYPASS, "x-vercel-set-bypass-cookie": "true" }
+  : undefined;
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, extraHTTPHeaders });
 const page = await ctx.newPage();
 
 const manifest = [];

@@ -21,10 +21,14 @@ concurrency:
 env:
   # Override via repo Variables if your Vercel project/scope differ.
   VERCEL_PROJECT: ${{ vars.VERCEL_PROJECT || 'computah' }}
-  VERCEL_SCOPE: ${{ vars.VERCEL_SCOPE || 'abhishekjani2509-1755s-projects' }}
-  PROD_URL: ${{ vars.PROD_URL || 'https://computah.vercel.app' }}
-  ROUTES: "/,/console"
+  VERCEL_SCOPE: ${{ vars.VERCEL_SCOPE || 'seth-1199s-projects' }}
+  PROD_URL: ${{ vars.PROD_URL || 'https://computah-mu.vercel.app' }}
+  ROUTES: "/"
   SHOTS_BRANCH: pr-previews
+  # Optional: lets us screenshot password-protected preview deploys.
+  # Vercel → Project → Settings → Deployment Protection → Protection Bypass for
+  # Automation → add the secret as repo secret VERCEL_AUTOMATION_BYPASS_SECRET.
+  VERCEL_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
 
 jobs:
   before-after:
@@ -50,9 +54,11 @@ jobs:
           AFTER="https://${VERCEL_PROJECT}-git-${SAN}-${VERCEL_SCOPE}.vercel.app"
           echo "after_url=$AFTER" >> "$GITHUB_OUTPUT"
           echo "Waiting for preview: $AFTER"
+          HDR=()
+          [ -n "$VERCEL_BYPASS" ] && HDR=(-H "x-vercel-protection-bypass: $VERCEL_BYPASS")
           ok=""
           for i in $(seq 1 40); do
-            code=$(curl -s -o /dev/null -w "%{http_code}" -L "$AFTER" || echo 000)
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L "${HDR[@]}" "$AFTER" || echo 000)
             echo "  attempt $i → $code"
             if [ "$code" = "200" ]; then ok="1"; break; fi
             sleep 12
@@ -66,6 +72,7 @@ jobs:
           AFTER_URL: ${{ steps.preview.outputs.after_url }}
           ROUTES: ${{ env.ROUTES }}
           OUT_DIR: shots
+          VERCEL_BYPASS: ${{ env.VERCEL_BYPASS }}
         run: node .github/scripts/pr-before-after.mjs
 
       - name: Publish shots to ${{ env.SHOTS_BRANCH }} branch
