@@ -1,8 +1,10 @@
 [auth]
 allowed_redirect_urls = [
   "https://computah-mu.vercel.app",
+  "https://computah-mu.vercel.app/listen",
   "https://computah-mu.vercel.app/app",
   "http://localhost:3000",
+  "http://localhost:3000/listen",
   "http://localhost:3000/app",
 ]
 require_email_verification = true
