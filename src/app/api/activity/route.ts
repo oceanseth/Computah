@@ -23,9 +23,24 @@ type VerificationRow = {
   created_at: string;
 };
 
+function demoItems() {
+  const now = Date.now();
+  const min = 60_000;
+  return [
+    { kind: "run" as const, id: "demo-1", url: "https://computah-mu.vercel.app/login", goal: "Log in with test@test.com / password and land on /dashboard", status: "passed", passed: true, created_at: new Date(now - 2 * min).toISOString() },
+    { kind: "message" as const, id: "demo-2", platform: "discord", author_name: "seth", content: "hey can you fix the sign-in button — it does nothing on mobile", created_at: new Date(now - 5 * min).toISOString() },
+    { kind: "run" as const, id: "demo-3", url: "https://computah-mu.vercel.app/login", goal: "Click sign in with wrong credentials and confirm an error appears", status: "passed", passed: true, created_at: new Date(now - 9 * min).toISOString() },
+    { kind: "message" as const, id: "demo-4", platform: "voice", author_name: "abir", content: "build a dashboard that shows all the recent verification runs with pass/fail badges", created_at: new Date(now - 14 * min).toISOString() },
+    { kind: "run" as const, id: "demo-5", url: "https://computah-mu.vercel.app", goal: "Home page loads and shows the product description with no console errors", status: "passed", passed: true, created_at: new Date(now - 22 * min).toISOString() },
+    { kind: "message" as const, id: "demo-6", platform: "slack", author_name: "pranav", content: "the verification engine is timing out on SPAs — networkidle waits too long", created_at: new Date(now - 31 * min).toISOString() },
+    { kind: "run" as const, id: "demo-7", url: "https://the-internet.herokuapp.com/login", goal: "Log in with username tomsmith and password SuperSecretPassword! and confirm success", status: "failed", passed: false, created_at: new Date(now - 47 * min).toISOString() },
+    { kind: "message" as const, id: "demo-8", platform: "discord", author_name: "abhishek", content: "Composio Discord trigger is live — messages are landing in platform_messages ✅", created_at: new Date(now - 58 * min).toISOString() },
+  ];
+}
+
 export async function GET() {
   if (!insforgeConfigured()) {
-    return NextResponse.json({ items: [] });
+    return NextResponse.json({ items: demoItems(), demo: true });
   }
 
   const insforge = getInsforge();
@@ -78,6 +93,10 @@ export async function GET() {
   const items = [...messages, ...runs]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 40);
+
+  if (items.length === 0) {
+    return NextResponse.json({ items: demoItems(), demo: true });
+  }
 
   return NextResponse.json({ items });
 }

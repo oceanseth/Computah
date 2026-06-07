@@ -173,6 +173,7 @@ function RunRow({ item }: { item: RunItem }) {
 export default function ActivityFeed() {
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [demo, setDemo] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function load() {
@@ -181,6 +182,7 @@ export default function ActivityFeed() {
       if (!res.ok) return;
       const json = await res.json();
       setItems(json.items ?? []);
+      setDemo(json.demo ?? false);
     } catch {}
   }
 
@@ -205,14 +207,22 @@ export default function ActivityFeed() {
   }
 
   return (
-    <div className="flex flex-col divide-y divide-[var(--shell-border)]">
-      {items.map((item) =>
-        item.kind === "message" ? (
-          <MessageRow key={item.id} item={item} />
-        ) : (
-          <RunRow key={item.id} item={item} />
-        )
+    <div>
+      {demo && (
+        <div className="mb-3 flex items-center gap-2 rounded-md border border-[var(--shell-border)] bg-[var(--shell-bg)] px-3 py-2 text-[11px] text-[var(--shell-text-soft)]">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--shell-text-soft)]" />
+          Demo data — connect Discord or run a verification to see live activity
+        </div>
       )}
+      <div className="flex flex-col divide-y divide-[var(--shell-border)]">
+        {items.map((item) =>
+          item.kind === "message" ? (
+            <MessageRow key={item.id} item={item} />
+          ) : (
+            <RunRow key={item.id} item={item} />
+          )
+        )}
+      </div>
     </div>
   );
 }
