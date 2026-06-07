@@ -1,7 +1,7 @@
 import { Card, CardLabel } from "../_components/Card";
-import EmptyState from "../_components/EmptyState";
 import PageHeader from "../_components/PageHeader";
 import { ActivityIcon } from "../_components/Icons";
+import ActivityFeed from "../_components/ActivityFeed";
 
 export default function ActivityPage() {
   return (
@@ -16,11 +16,9 @@ export default function ActivityPage() {
       <div className="mt-8">
         <Card className="flex min-h-[360px] flex-col">
           <CardLabel>/ Recent Activity</CardLabel>
-          <EmptyState
-            icon={<ActivityIcon size={56} />}
-            title="Nothing yet"
-            description="When agents run or messages arrive, they'll show up here."
-          />
+          <div className="mt-4 flex-1">
+            <ActivityFeed />
+          </div>
         </Card>
       </div>
     </div>
