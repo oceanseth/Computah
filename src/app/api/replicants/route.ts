@@ -6,6 +6,7 @@ import {
   getReplica,
   envCredentials,
   ensureEnvironmentVariable,
+  sendReplicaMessage,
   ReplicaCredentials,
 } from "@/lib/replicas";
 import { createDevinSession, envApiKey as devinEnvApiKey } from "@/lib/devin";
@@ -56,7 +57,12 @@ async function devinKeyForProject(projectId: string): Promise<string | null> {
 }
 
 export async function POST(req: NextRequest) {
-  const { id, userId } = (await req.json()) as { id?: string; userId?: string };
+  const { id, userId, action, message } = (await req.json()) as {
+    id?: string;
+    userId?: string;
+    action?: "spawn" | "nudge";
+    message?: string;
+  };
   if (!id || !userId) return NextResponse.json({ error: "id and userId required" }, { status: 400 });
 
   const insforge = getInsforge();
@@ -73,6 +79,37 @@ export async function POST(req: NextRequest) {
   if (!(await membership(userId, replicant.project_id))) {
     return NextResponse.json({ error: "not a project member" }, { status: 403 });
   }
+  // ---- nudge: follow-up message to a live replica (e.g. after fixing a
+  // secret it was missing) — wakes it and flips the row back to running ----
+  if (action === "nudge") {
+    const full = replicant as typeof replicant & { replica_id?: string | null };
+    if (!full.replica_id) {
+      return NextResponse.json({ error: "replicant has no live agent to nudge" }, { status: 409 });
+    }
+    if (replicant.coding_agent === "devin") {
+      return NextResponse.json({ error: "nudge Devin sessions from devin.ai" }, { status: 501 });
+    }
+    const creds = await credsForProject(replicant.project_id);
+    if (!creds) return NextResponse.json({ error: "Replicas not configured" }, { status: 501 });
+    try {
+      const nudgeText =
+        message?.trim() ||
+        "The blocking issue has been fixed on our side (config/secret updated). Please retry the failed step and continue the task.";
+      const res = await sendReplicaMessage(creds, full.replica_id, nudgeText);
+      await insforge.database
+        .from("replicants")
+        .update({ status: "running", updated_at: new Date().toISOString() })
+        .eq("id", id);
+      await announce(
+        replicant.project_id,
+        `👉 Nudged replicant **${replicant.name}**: "${nudgeText.slice(0, 140)}"`
+      );
+      return NextResponse.json({ ok: true, delivery: res.status });
+    } catch (err) {
+      return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    }
+  }
+
   if (replicant.status !== "proposed") {
     return NextResponse.json({ error: `already ${replicant.status}` }, { status: 409 });
   }
@@ -161,8 +198,17 @@ export async function POST(req: NextRequest) {
   }
 }
 
-const LIVE_STATUSES = new Set(["spawning", "running", "pending", "starting", "active"]);
 const DONE_STATUSES = new Set(["completed", "finished", "succeeded", "stopped", "done"]);
+// statuses we stop polling for; anything else with a replica_id keeps refreshing
+// (Replicas emits intermediate states like "preparing" we can't enumerate)
+const TERMINAL_STATUSES = new Set([
+  ...DONE_STATUSES,
+  "proposed",
+  "rejected",
+  "failed",
+  "verified",
+  "verify_failed",
+]);
 
 /** Post as Computah into the project's hub channel — the DB trigger pushes it
  *  to the web chat and the replicator relays it to every connected platform. */
@@ -266,7 +312,7 @@ export async function GET(req: NextRequest) {
     const stale = Date.now() - 10_000;
     for (const row of rows) {
       if (row.coding_agent === "devin") continue;
-      if (!row.replica_id || !LIVE_STATUSES.has(row.status)) continue;
+      if (!row.replica_id || TERMINAL_STATUSES.has(row.status)) continue;
       if (new Date(row.updated_at).getTime() > stale) continue;
       try {
         const live = await getReplica(creds, row.replica_id);

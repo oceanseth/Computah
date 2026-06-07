@@ -224,6 +224,27 @@ export default function ListenPage() {
     void loadReplicants();
   }
 
+  async function nudge(r: Replicant) {
+    if (!user) return;
+    const text = window.prompt(
+      "Message for the agent (what changed / what to retry):",
+      "The blocking issue has been fixed — please retry and continue."
+    );
+    if (text === null) return;
+    setBusyId(r.id);
+    const res = await fetch("/api/replicants", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: r.id, userId: user.id, action: "nudge", message: text }),
+    });
+    if (!res.ok) {
+      const { error } = (await res.json()) as { error?: string };
+      setNotice(error || "nudge failed");
+    }
+    setBusyId(null);
+    void loadReplicants();
+  }
+
   async function connectDiscord(e: React.FormEvent) {
     e.preventDefault();
     if (!hub || !user || !discordId.trim()) return;
@@ -403,6 +424,18 @@ export default function ListenPage() {
                         </button>
                       </>
                     )}
+                    {r.status !== "proposed" &&
+                      r.status !== "rejected" &&
+                      r.coding_agent !== "devin" && (
+                        <button
+                          onClick={() => void nudge(r)}
+                          disabled={busyId === r.id}
+                          title="Send a follow-up message to the agent (e.g. after fixing a secret)"
+                          className="rounded-full border border-[var(--shell-border)] px-3.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--shell-text-muted)] transition hover:border-[var(--shell-coral)] hover:text-[var(--shell-coral)] disabled:opacity-50"
+                        >
+                          {busyId === r.id ? "Nudging…" : "Nudge"}
+                        </button>
+                      )}
                     {r.url && r.status !== "proposed" && r.status !== "rejected" && (
                       <a
                         href={r.url}

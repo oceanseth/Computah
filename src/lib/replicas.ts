@@ -92,6 +92,19 @@ export async function createReplica(
   };
 }
 
+/** Send a follow-up message to a live replica (wakes it if sleeping). */
+export async function sendReplicaMessage(
+  creds: ReplicaCredentials,
+  replicaId: string,
+  message: string
+): Promise<{ status: string }> {
+  const data = await api(creds.apiKey, `/v1/replica/${replicaId}/messages`, {
+    method: "POST",
+    body: { message },
+  });
+  return { status: (data.status as string) || "sent" };
+}
+
 /** Idempotently set an env var on the environment (new replicant VMs inherit it). */
 export async function ensureEnvironmentVariable(
   creds: ReplicaCredentials,
