@@ -51,10 +51,17 @@ Computah MCP server ──HTTP──► Next.js /api/verify
 
 ## The demo
 
-> Agent: *"I built a login page."*
-> → Computah opens it, types credentials, clicks **Sign in**, screenshots the result.
-> → InsForge AI: *"FAIL — the button does nothing, no navigation, console error `handleSubmit is not defined`."*
-> → Agent fixes it, re-runs Computah → **PASS**.
+> You say, out loud: *"Spin up an agent to build a Tetris game."*
+> → Your words stream into the live transcript **and replicate instantly to the
+> team's Discord channel** — everyone sees it, wherever they are.
+> → Computah's AI extracts the build instruction and pops a **replicant card**.
+> → One click on **Approve** → a real cloud coding agent ([Replicas](https://tryreplicas.com))
+> boots in its own VM and starts building, committing to a branch and opening a PR.
+> → When the agent says it's done, Computah opens the change in a *real* browser,
+> drives it like a QA tester, and posts the **PASS/FAIL verdict back to every
+> connected channel**.
+>
+> Conversation in. Working, verified software out. From any platform.
 
 ## The team
 
@@ -75,13 +82,55 @@ strangers on day 1, shipping by day's end.
 
 | Sponsor | What it powers |
 | --- | --- |
-| **InsForge** | The entire backend — Postgres (verification sessions), Storage (per-step screenshots), and the AI gateway that drives + judges the browser. |
-| **Composio** | OAuth + tool execution for the messaging layer — connecting **Discord** and **Slack** (and **Maskord**, once it lands on Composio) as source/destination platforms so people can drive the agents together. |
-| **Anthropic** | The Claude Agent SDK runs the agent loop behind the voice app. |
-| **Deepgram** | Real-time voice transcription — the voice app turns spoken prompts into agent actions. |
-| **Limrun** | Built the mobile version of the app. |
+| **InsForge** | The **entire backend**, operated by agents via CLI throughout the build: Google/GitHub auth with row-level security, 9 Postgres tables under migrations, **realtime** (a DB trigger pushes every message to `hub:%` channels the web chat subscribes to), the AI model gateway (voice-command extraction + browser-verification judging), and Storage (verification screenshots). |
+| **Replicas** | The **replicants themselves** — every approved card spawns a real cloud coding agent in its own VM via the Replicas API, prompted to commit on a branch and open a PR. Per-project API keys/environments live in project settings. |
+| **lim.run** | Built and tested the **native mobile** version of the voice app (`voice-app/mobile`) — no Mac required. |
+| **Composio** | OAuth + tool execution for the messaging layer — Slack next, **Maskord** when it lands. |
+| **Anthropic** | Claude (Agent SDK + Claude Code) as the coding agent behind the replicants and the build itself. |
+| **Deepgram** | Real-time transcription in the desktop voice app (per-project keys in settings). |
+| **HeyGen** | The landing-page product video is a HyperFrames composition (`promo/`), rendered to MP4. |
 | **Memoir** | Posted about the project on X and LinkedIn. |
 | **Vercel** | Hosts the live app at [computah-mu.vercel.app](https://computah-mu.vercel.app). |
+
+## The judging criteria, addressed
+
+**Originality (25%)** — You can *talk a coding agent into existence* — from Discord,
+from your browser, or just out loud — and the whole team watches it happen from
+whichever platform they already live in. The unexpected part isn't any one piece;
+it's that the conversation itself is the interface: every message **replicates
+bidirectionally** across web ↔ voice ↔ Discord, that shared context drives the
+agents, and the agents verify their own work in a real browser before reporting
+back everywhere. We haven't seen "platform-agnostic collaborative agent-driving"
+anywhere else.
+
+**Technical execution (20%)** — It works end-to-end, today: Discord Gateway
+websockets in (instant), InsForge realtime push to the browser (instant),
+loop-prevention on relays, dedup on replays, RLS on every table, OAuth with code
+verification, replicants with live status polling, and a one-time backfill so no
+message is ever lost. 9 migrations, all applied; the build is green; the demo
+runs on the live pipeline, not a mock.
+
+**Demo impact (20%)** — The demo is a sentence: *"spin up an agent to build a
+Tetris game"* — spoken into the room. The room watches it appear in Discord,
+become a card, become a **running cloud agent**, and come back as a verified PR.
+The audience can post in the Discord channel mid-demo and watch their own words
+land in the app in under a second.
+
+**Sponsor tool use (15%)** — All three judged sponsors are **load-bearing**, not
+decorative: InsForge *is* the backend (auth, Postgres, realtime, AI gateway,
+storage — see table above), Replicas *is* the product's core verb (spawning
+replicants), and lim.run built the mobile surface. Remove any one and a feature
+disappears.
+
+**Ambition (10%)** — One day, five strangers: a web platform with auth + RLS, a
+bidirectional cross-platform message replicator, voice-driven agent spawning, an
+Electron always-listening app, a lim.run mobile app, a self-verifying browser
+agent with MCP, and a HyperFrames-rendered promo. We swung.
+
+**Personal preference (10%)** — This is the tool we wanted while building it:
+the team coordinated in Discord all day — if Computah had existed at 9am, our
+Discord chatter would have been spawning the agents that built Computah.
+Recursive? That's the roadmap.
 
 ## Setup
 
